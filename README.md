@@ -148,4 +148,4 @@ Config, session snapshots, recent files and macros live under `~/.config/nplus/`
 
 ## License
 
-MIT License — Copyright (c) 2026 Mule Skinner. See source headers for full text.
+MIT License — Copyright (c) June 2026 Mule Skinner. See source headers for full text.
