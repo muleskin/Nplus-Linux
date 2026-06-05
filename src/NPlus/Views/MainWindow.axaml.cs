@@ -393,25 +393,27 @@ public partial class MainWindow : Window
                 if (result == SaveCloseChoice.Save) SaveTab(doc);
             }
 
-            var items = (System.Collections.IList)_tabs.Items;
-            if (!items.Contains(doc.TabItem)) return;
+            // Use the ItemCollection's public API directly. The non-generic IList.Remove
+            // on Avalonia's ItemCollection throws "collection is read-only"; the public
+            // ItemCollection.Remove/Add/RemoveAt are the supported mutators.
+            var items = _tabs.Items;
 
             // Always keep at least one tab. Create the replacement BEFORE removing the
-            // last tab so the TabControl never transiently holds zero items (removing the
-            // last/selected item that way can throw and, from this async void handler,
-            // take the whole app down). Otherwise just move the selection off this tab.
-            if (items.Count == 1)
+            // last tab so the TabControl never transiently holds zero items.
+            if (items.Count <= 1)
             {
                 AddNewTab($"new {_newCounter++}"); // moves selection to the new tab
             }
-            else if (_tabs.SelectedItem == doc.TabItem)
+            else if (ReferenceEquals(_tabs.SelectedItem, doc.TabItem))
             {
-                int idx = items.IndexOf(doc.TabItem);
-                _tabs.SelectedIndex = idx > 0 ? idx - 1 : 1;
+                // Move selection off the tab we're about to remove.
+                _tabs.SelectedIndex = 0;
+                if (ReferenceEquals(_tabs.SelectedItem, doc.TabItem))
+                    _tabs.SelectedIndex = 1;
             }
 
             doc.DisposeWatchers();
-            items.Remove(doc.TabItem);
+            _tabs.Items.Remove(doc.TabItem);
             _docs.Remove(doc.TabItem);
         }
         catch (Exception ex)

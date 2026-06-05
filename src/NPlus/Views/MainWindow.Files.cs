@@ -604,21 +604,23 @@ public partial class MainWindow
 
     private void RebuildRecentFilesMenu()
     {
-        var items = (IList)_fileMenu.Items;
-        // Remove previous recent entries (tagged via Tag == "recent").
-        for (int i = items.Count - 1; i >= 0; i--)
-            if (items[i] is Control c && (c.Tag as string) == "recent")
-                items.RemoveAt(i);
+        // Mutate via ItemCollection's public methods (RemoveAt/Insert); the non-generic
+        // IList facade on Avalonia's ItemCollection is read-only for some operations.
+        var menuItems = _fileMenu.Items;
+        var read = (IList)menuItems; // index access for inspection only
+
+        for (int i = read.Count - 1; i >= 0; i--)
+            if (read[i] is Control c && (c.Tag as string) == "recent")
+                menuItems.RemoveAt(i);
 
         if (_recent.Files.Count == 0) return;
 
         int exitIndex = -1;
-        for (int i = 0; i < items.Count; i++)
-            if (items[i] is MenuItem mi && (mi.Header as string) == "Exit") { exitIndex = i; break; }
+        for (int i = 0; i < read.Count; i++)
+            if (read[i] is MenuItem mi && (mi.Header as string) == "Exit") { exitIndex = i; break; }
         if (exitIndex < 0) return;
 
-        var sep = new Separator { Tag = "recent" };
-        items.Insert(exitIndex, sep);
+        menuItems.Insert(exitIndex, new Separator { Tag = "recent" });
 
         for (int i = 0; i < _recent.Files.Count; i++)
         {
@@ -626,7 +628,7 @@ public partial class MainWindow
             var item = new MenuItem { Header = $"{i + 1}. {Path.GetFileName(path)}", Tag = "recent" };
             ToolTip.SetTip(item, path);
             item.Click += (_, _) => OpenRecentFile(path);
-            items.Insert(exitIndex + 1 + i, item);
+            menuItems.Insert(exitIndex + 1 + i, item);
         }
     }
 
