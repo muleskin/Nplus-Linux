@@ -6,7 +6,21 @@
 DOTNET  ?= dotnet
 PROJECT := src/NPlus/NPlus.csproj
 CONFIG  ?= Release
-RID     ?= linux-x64
+
+# Auto-detect the host architecture so 'make publish' produces a native binary.
+# Override on the command line, e.g.  make publish RID=linux-x64
+UNAME_M := $(shell uname -m)
+ifeq ($(UNAME_M),x86_64)
+  RID ?= linux-x64
+else ifeq ($(UNAME_M),aarch64)
+  RID ?= linux-arm64
+else ifeq ($(UNAME_M),arm64)
+  RID ?= linux-arm64
+else ifeq ($(UNAME_M),armv7l)
+  RID ?= linux-arm
+else
+  RID ?= linux-x64
+endif
 
 .DEFAULT_GOAL := build
 .PHONY: all help restore build run release publish package install uninstall clean
