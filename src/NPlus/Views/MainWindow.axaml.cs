@@ -202,11 +202,11 @@ public partial class MainWindow : Window
         _btnColumn = Tool("☰", "Column / block selection (Ctrl+Alt+A)", ToggleColumnMode);
         Sep();
         Tool("↶", "Undo", () => GetActiveEditor()?.Undo());
-        Tool("●", "Start recording macro", StartRecording);
+        Tool("🔴", "Start recording macro", StartRecording);
         Tool("■", "Stop recording macro", StopRecording);
         Tool("▶", "Playback macro (Ctrl+Shift+P)", () => PlaybackMacro(true));
         Sep();
-        _btnLive = Tool("🔴", "Live monitor (tail) current file", () => ToggleLiveMonitor());
+        _btnLive = Tool("📡", "Live monitor (tail) current file", () => ToggleLiveMonitor());
         _btnJson = Tool("{ }", "JSON tree explorer", ToggleJsonPanel);
         _btnHex = Tool("⧉", "Toggle hex view", ToggleHexView);
         Tool("🔍", "Find in Files (Ctrl+Shift+F)", () => ShowFind(2));
