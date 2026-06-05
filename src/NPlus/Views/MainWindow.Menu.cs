@@ -39,6 +39,7 @@ public partial class MainWindow
         AddItems(_fileMenu,
             Mi("New", NewTab, new KeyGesture(Key.N, KeyModifiers.Control)),
             Mi("Open…", OpenFile, new KeyGesture(Key.O, KeyModifiers.Control)),
+            Mi("Open by Path…", () => _ = OpenByPathPrompt()),
             Mi("Save", SaveFile, new KeyGesture(Key.S, KeyModifiers.Control)),
             Mi("Save As…", SaveFileAs, new KeyGesture(Key.S, KeyModifiers.Control | KeyModifiers.Shift)),
             Mi("Save All", SaveAll),

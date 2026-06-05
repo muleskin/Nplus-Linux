@@ -30,14 +30,49 @@ public partial class MainWindow
 
     private async void OpenFile()
     {
-        var files = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+        // If there's no working native file-picker backend (common on minimal Linux
+        // installs without an xdg-desktop-portal), fall back to a typed-path prompt.
+        if (!StorageProvider.CanOpen)
         {
-            Title = "Open file(s)",
-            AllowMultiple = true,
-        });
-        if (files == null || files.Count == 0) return;
-        var paths = files.Select(f => f.TryGetLocalPath()).Where(p => !string.IsNullOrEmpty(p)).Cast<string>().ToArray();
-        OpenFilesFromPaths(paths);
+            await OpenByPathPrompt();
+            return;
+        }
+        try
+        {
+            var files = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+            {
+                Title = "Open file(s)",
+                AllowMultiple = true,
+            });
+            if (files == null || files.Count == 0) return; // user cancelled
+            var paths = files.Select(f => f.TryGetLocalPath()).Where(p => !string.IsNullOrEmpty(p)).Cast<string>().ToArray();
+            OpenFilesFromPaths(paths);
+        }
+        catch (Exception)
+        {
+            // Native dialog backend unavailable/threw — use the manual fallback.
+            await OpenByPathPrompt();
+        }
+    }
+
+    /// <summary>Open a file by typing its path — a backend-independent fallback (also the File ▸ Open by Path… command).</summary>
+    private async Task OpenByPathPrompt()
+    {
+        string start = ActiveDoc?.FilePath is { } p && !string.IsNullOrEmpty(p)
+            ? Path.GetDirectoryName(p) + Path.DirectorySeparatorChar
+            : Environment.GetFolderPath(Environment.SpecialFolder.UserProfile) + Path.DirectorySeparatorChar;
+        string? input = await MessageBoxes.Prompt(this, "Open file", "Enter the full path of the file to open:", start);
+        if (string.IsNullOrWhiteSpace(input)) return;
+        input = ExpandUserPath(input.Trim());
+        if (!File.Exists(input)) { ShowMessage("n+", $"File not found:\n{input}"); return; }
+        OpenFilesFromPaths(new[] { input });
+    }
+
+    private static string ExpandUserPath(string path)
+    {
+        if (path == "~" || path.StartsWith("~/") || path.StartsWith("~\\"))
+            path = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile) + path.Substring(1);
+        return path;
     }
 
     public void OpenFilesFromPaths(string[] paths)
@@ -219,21 +254,38 @@ public partial class MainWindow
 
     private async Task SaveFileAsAsync(EditorDocument doc)
     {
-        IStorageFolder? startFolder = null;
-        if (!string.IsNullOrEmpty(doc.FilePath))
+        string? path = null;
+
+        if (StorageProvider.CanSave)
         {
-            var dir = Path.GetDirectoryName(doc.FilePath);
-            if (dir != null) startFolder = await StorageProvider.TryGetFolderFromPathAsync(dir);
+            try
+            {
+                IStorageFolder? startFolder = null;
+                if (!string.IsNullOrEmpty(doc.FilePath))
+                {
+                    var dir = Path.GetDirectoryName(doc.FilePath);
+                    if (dir != null) startFolder = await StorageProvider.TryGetFolderFromPathAsync(dir);
+                }
+                var file = await StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
+                {
+                    Title = "Save As",
+                    SuggestedFileName = doc.FilePath != null ? Path.GetFileName(doc.FilePath) : doc.BaseTitle,
+                    SuggestedStartLocation = startFolder,
+                });
+                if (file == null) return; // user cancelled
+                path = file.TryGetLocalPath();
+            }
+            catch { /* fall through to the path prompt */ }
         }
 
-        var file = await StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
+        if (string.IsNullOrEmpty(path))
         {
-            Title = "Save As",
-            SuggestedFileName = doc.FilePath != null ? Path.GetFileName(doc.FilePath) : doc.BaseTitle,
-            SuggestedStartLocation = startFolder,
-        });
-        var path = file?.TryGetLocalPath();
-        if (string.IsNullOrEmpty(path)) return;
+            // No native save dialog — prompt for a destination path.
+            string suggest = doc.FilePath ?? (Environment.GetFolderPath(Environment.SpecialFolder.UserProfile) + Path.DirectorySeparatorChar + doc.BaseTitle);
+            string? input = await MessageBoxes.Prompt(this, "Save As", "Enter the full path to save to:", suggest);
+            if (string.IsNullOrWhiteSpace(input)) return;
+            path = ExpandUserPath(input.Trim());
+        }
 
         try
         {
