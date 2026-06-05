@@ -12,21 +12,6 @@ line/blank operations, sorting, JSON tools, macros, session/settings persistence
 faithfully. The app targets **.NET 10** and publishes as a self-contained binary that needs no
 installed runtime.
 
-## Install (Linux)
-
-Grab a release tarball (or build one — see below), then:
-
-```bash
-tar xzf nplus-linux-x64.tar.gz
-cd nplus-linux-x64
-./install.sh            # per-user install into ~/.local (no root needed)
-nplus                   # launch (or find "n+" in your application menu)
-```
-
-`install.sh` copies the binary into `~/.local/lib/nplus`, symlinks `~/.local/bin/nplus`, and
-installs the `.desktop` entry + icon so n+ shows up in your desktop's app menu and as an
-"Open with…" handler for text files.
-
 ## Building from source
 
 Requirements:
