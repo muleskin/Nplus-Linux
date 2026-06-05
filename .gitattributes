@@ -1,2 +1,13 @@
 # Auto detect text files and perform LF normalization
 * text=auto
+
+# Force LF for shell scripts and the Makefile so they run on Linux even when
+# committed from Windows (a CR in the shebang line breaks `#!/usr/bin/env bash`).
+*.sh      text eol=lf
+Makefile  text eol=lf
+*.desktop text eol=lf
+
+# Binary assets — never line-ending-normalize.
+*.png  binary
+*.ico  binary
+*.docx binary
