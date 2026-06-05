@@ -14,9 +14,18 @@ installed runtime.
 
 ## Building from source
 
-Requirements:
-- [.NET 10 SDK](https://dotnet.microsoft.com/download) (the only prerequisite — Avalonia,
-  AvaloniaEdit and the TextMate grammars come in via NuGet).
+The only prerequisite is the **.NET 10 SDK** (Avalonia, AvaloniaEdit and the TextMate
+grammars come in via NuGet). If you don't have it, install it with the bundled
+`dotnet-install.sh` — no root required, it installs to `~/.dotnet`:
+
+```bash
+./dotnet-install.sh --channel 10.0
+export PATH="$HOME/.dotnet:$PATH"     # add to ~/.bashrc to persist
+dotnet --version                      # expect 10.0.x
+```
+
+(Or use your distro package: Fedora `sudo dnf install dotnet-sdk-10.0`, Arch
+`sudo pacman -S dotnet-sdk`, Ubuntu `sudo apt install dotnet-sdk-10.0`.)
 
 A `Makefile` wraps the common tasks (run `make help` for the full list):
 
