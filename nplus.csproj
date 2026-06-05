@@ -1,0 +1,95 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <RootNamespace>nplus</RootNamespace>
+    <AssemblyName>nplus</AssemblyName>
+    <ApplicationIcon>nplus.ico</ApplicationIcon>
+
+    <!-- Keep the existing hand-maintained Properties\AssemblyInfo.cs instead of
+         letting the SDK generate assembly attributes (avoids duplicate-attribute errors). -->
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+
+    <!-- Legacy code base: keep classic behavior. -->
+    <ImplicitUsings>disable</ImplicitUsings>
+    <Nullable>disable</Nullable>
+    <LangVersion>latest</LangVersion>
+
+    <!-- This is an inherently Windows-only WinForms app; silence the platform-compat
+         analyzer noise about Windows-only APIs (WinForms, Scintilla markers, etc.). -->
+    <NoWarn>$(NoWarn);CA1416</NoWarn>
+
+    <!-- ============================================================
+         Single-file packaging — produce ONE self-contained nplus.exe.
+
+         Publish with:
+           dotnet publish -c Release -r win-x64
+
+         What ends up inside the single exe:
+           * All managed assemblies (Scintilla.NET, HexBox, our code) are
+             bundled by .NET's PublishSingleFile.
+           * The two NATIVE DLLs (Scintilla.dll, Lexilla.dll) cannot be loaded
+             from a single-file bundle by Scintilla.NET (it probes the file
+             system for them), so we instead embed them as managed resources
+             (see the EmbeddedResource items below) and extract + register them
+             at startup via NativeBootstrap.Initialize() in Program.cs.
+
+         Result: the publish folder contains nplus.exe and nothing else needed
+         to run (aside from the .NET 8 Desktop Runtime — set SelfContained=true
+         below to fold that in too at the cost of a much larger exe).
+         ============================================================ -->
+    <PublishSingleFile>true</PublishSingleFile>
+    <SelfContained>false</SelfContained>
+    <!-- Fold debug symbols into the PE so publish emits a single file (no loose .pdb). -->
+    <DebugType>embedded</DebugType>
+    <RuntimeIdentifier Condition="'$(RuntimeIdentifier)' == ''">win-x64</RuntimeIdentifier>
+    <!-- Native libs are embedded as resources, so nothing needs to self-extract. -->
+    <IncludeNativeLibrariesForSelfExtract>false</IncludeNativeLibrariesForSelfExtract>
+    <EnableCompressionInSingleFile Condition="'$(SelfContained)' == 'true'">true</EnableCompressionInSingleFile>
+    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+  </PropertyGroup>
+
+  <!-- The Bootstrap\ folder is a separate Native AOT launcher project. Keep its
+       sources/output out of this app project (SDK auto-globs **\*.cs otherwise). -->
+  <ItemGroup>
+    <Compile Remove="Bootstrap\**" />
+    <EmbeddedResource Remove="Bootstrap\**" />
+    <Content Remove="Bootstrap\**" />
+    <None Remove="Bootstrap\**" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Scintilla5.NET" Version="6.1.2" />
+    <PackageReference Include="Be.Windows.Forms.HexBox.Net5" Version="1.8.0" />
+  </ItemGroup>
+
+  <!-- Embed the native Scintilla/Lexilla DLLs into the exe. NativeBootstrap
+       (Program.cs) writes them back out to a temp folder at startup and points
+       Scintilla.NET at it via ScintillaNativeLibrary.SatelliteDirectory. -->
+  <ItemGroup>
+    <EmbeddedResource Include="native\win-x64\Scintilla.dll" LogicalName="nplus.native.Scintilla.dll" />
+    <EmbeddedResource Include="native\win-x64\Lexilla.dll" LogicalName="nplus.native.Lexilla.dll" />
+  </ItemGroup>
+
+  <!-- Scintilla5.NET's build targets copy runtimes\<rid>\native\*.dll next to the
+       output as loose Content. We carry those DLLs as embedded resources instead,
+       so strip the loose copies to keep the publish output a single exe. -->
+  <Target Name="DropScintillaLooseNatives" BeforeTargets="AssignTargetPaths">
+    <ItemGroup>
+      <Content Remove="@(Content)" Condition="$([System.String]::Copy('%(Content.Identity)').Replace('\','/').ToLowerInvariant().Contains('/scintilla5.net/'))" />
+    </ItemGroup>
+  </Target>
+
+  <!-- Publishing with a RID also resolves the package's native assets
+       (runtimes\win-x64\native\*.dll) as flat copy-local files. Drop those from
+       the publish set too — they live inside the exe as embedded resources. -->
+  <Target Name="DropNativesFromPublish" AfterTargets="ComputeResolvedFilesToPublishList">
+    <ItemGroup>
+      <ResolvedFileToPublish Remove="@(ResolvedFileToPublish)"
+        Condition="'%(Filename)%(Extension)' == 'Scintilla.dll' Or '%(Filename)%(Extension)' == 'Lexilla.dll'" />
+    </ItemGroup>
+  </Target>
+
+</Project>

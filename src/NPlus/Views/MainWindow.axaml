@@ -1,0 +1,7 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="NPlus.Views.MainWindow"
+        Width="1100" Height="720"
+        Icon="/Assets/nplus.ico"
+        Title="n+">
+</Window>
