@@ -265,6 +265,7 @@ public partial class MainWindow : Window
         items.Add(tab);
         _tabs.SelectedItem = tab;
 
+        ApplyThemeToDoc(doc);
         ApplySyntax(doc);
         ApplyViewOptions(editor);
         ApplyZoomToEditor(editor);
@@ -420,23 +421,32 @@ public partial class MainWindow : Window
     private void ApplyTheme()
     {
         RequestedThemeVariant = _isDarkMode ? Avalonia.Styling.ThemeVariant.Dark : Avalonia.Styling.ThemeVariant.Light;
+        foreach (var doc in _docs.Values)
+        {
+            ApplyThemeToDoc(doc);
+            UpdateTabHeader(doc);
+        }
+        UpdateToggleButtonVisuals();
+    }
 
+    /// <summary>
+    /// Applies the current light/dark palette to a single document. Must run for every
+    /// editor — including tabs created after startup — so the TextMate token theme matches
+    /// the editor background (otherwise text renders the same color as the background).
+    /// </summary>
+    private void ApplyThemeToDoc(EditorDocument doc)
+    {
         var tmTheme = _registryOptions.LoadTheme(_isDarkMode ? ThemeName.DarkPlus : ThemeName.LightPlus);
         IBrush editorBg = _isDarkMode ? new SolidColorBrush(Color.FromRgb(30, 30, 35)) : Brushes.White;
         IBrush editorFg = _isDarkMode ? new SolidColorBrush(Color.FromRgb(240, 240, 240)) : Brushes.Black;
 
-        foreach (var doc in _docs.Values)
+        doc.TextMate?.SetTheme(tmTheme);
+        if (doc.Editor != null)
         {
-            doc.TextMate?.SetTheme(tmTheme);
-            if (doc.Editor != null)
-            {
-                doc.Editor.Background = editorBg;
-                doc.Editor.Foreground = editorFg;
-            }
-            doc.Hex?.SetColors(editorBg, editorFg);
-            UpdateTabHeader(doc);
+            doc.Editor.Background = editorBg;
+            doc.Editor.Foreground = editorFg;
         }
-        UpdateToggleButtonVisuals();
+        doc.Hex?.SetColors(editorBg, editorFg);
     }
 
     private void ToggleTheme()
