@@ -384,18 +384,40 @@ public partial class MainWindow : Window
 
     private async void CloseTab(EditorDocument doc)
     {
-        if (doc.IsDirty)
+        try
         {
-            var result = await PromptSaveBeforeCloseAsync(doc);
-            if (result == SaveCloseChoice.Cancel) return;
-            if (result == SaveCloseChoice.Save) SaveTab(doc);
+            if (doc.IsDirty)
+            {
+                var result = await PromptSaveBeforeCloseAsync(doc);
+                if (result == SaveCloseChoice.Cancel) return;
+                if (result == SaveCloseChoice.Save) SaveTab(doc);
+            }
+
+            var items = (System.Collections.IList)_tabs.Items;
+            if (!items.Contains(doc.TabItem)) return;
+
+            // Always keep at least one tab. Create the replacement BEFORE removing the
+            // last tab so the TabControl never transiently holds zero items (removing the
+            // last/selected item that way can throw and, from this async void handler,
+            // take the whole app down). Otherwise just move the selection off this tab.
+            if (items.Count == 1)
+            {
+                AddNewTab($"new {_newCounter++}"); // moves selection to the new tab
+            }
+            else if (_tabs.SelectedItem == doc.TabItem)
+            {
+                int idx = items.IndexOf(doc.TabItem);
+                _tabs.SelectedIndex = idx > 0 ? idx - 1 : 1;
+            }
+
+            doc.DisposeWatchers();
+            items.Remove(doc.TabItem);
+            _docs.Remove(doc.TabItem);
         }
-        doc.DisposeWatchers();
-        var items = (System.Collections.IList)_tabs.Items;
-        items.Remove(doc.TabItem);
-        _docs.Remove(doc.TabItem);
-        if (_tabs.ItemCount == 0)
-            AddNewTab($"new {_newCounter++}");
+        catch (Exception ex)
+        {
+            ShowMessage("n+", $"Could not close tab:\n{ex.Message}");
+        }
     }
 
     private void OnTabSelectionChanged(object? sender, SelectionChangedEventArgs e)
