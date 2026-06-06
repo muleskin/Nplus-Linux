@@ -3,7 +3,9 @@
 #   make publish RID=linux-arm64
 #   make build CONFIG=Debug
 
-DOTNET  ?= dotnet
+# Find dotnet on PATH, else fall back to the per-user install dir used by
+# dotnet-install.sh (~/.dotnet). Override with: make <target> DOTNET=/path/to/dotnet
+DOTNET  ?= $(shell command -v dotnet 2>/dev/null || echo $(HOME)/.dotnet/dotnet)
 PROJECT := src/NPlus/NPlus.csproj
 CONFIG  ?= Release
 
@@ -58,7 +60,7 @@ publish:
 	@echo "Built dist/$(RID)/nplus"
 
 package:
-	bash packaging/build-linux.sh $(RID)
+	DOTNET="$(DOTNET)" bash packaging/build-linux.sh $(RID)
 
 install: package
 	cd dist/nplus-$(RID) && ./install.sh

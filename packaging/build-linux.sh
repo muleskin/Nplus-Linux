@@ -10,9 +10,21 @@ PROJ="$ROOT/src/NPlus/NPlus.csproj"
 OUT="$ROOT/dist/$RID"
 STAGE="$ROOT/dist/nplus-$RID"
 
+# Find dotnet: honor $DOTNET, else PATH, else the per-user dotnet-install.sh location.
+DOTNET="${DOTNET:-dotnet}"
+if ! command -v "$DOTNET" >/dev/null 2>&1; then
+    if [ -x "$HOME/.dotnet/dotnet" ]; then
+        DOTNET="$HOME/.dotnet/dotnet"
+    else
+        echo "error: 'dotnet' not found on PATH and ~/.dotnet/dotnet is missing." >&2
+        echo "Install the SDK first:  ./dotnet-install.sh --channel 10.0" >&2
+        exit 127
+    fi
+fi
+
 echo "==> Publishing $RID (self-contained, single file)…"
 rm -rf "$OUT" "$STAGE"
-dotnet publish "$PROJ" -c Release -r "$RID" --self-contained true \
+"$DOTNET" publish "$PROJ" -c Release -r "$RID" --self-contained true \
     -p:PublishSingleFile=true -o "$OUT"
 
 echo "==> Staging tarball layout…"
