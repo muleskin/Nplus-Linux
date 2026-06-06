@@ -48,6 +48,20 @@ packaging/build-linux.sh linux-arm64
 This publishes a single-file `dist/linux-x64/nplus` (plus the native Skia/HarfBuzz/Oniguruma
 `.so` libraries it loads at runtime) and assembles `dist/nplus-linux-x64.tar.gz`.
 
+### Running on a minimal / headless Linux box
+
+n+ is a GUI app, so it needs a display server (X11/Wayland) and a few X client libraries.
+Full desktops already have these; "lite"/minimal Ubuntu/Debian installs usually don't, and
+the window simply won't appear. An optional helper installs what's missing:
+
+```bash
+./packaging/install-gui-deps.sh          # X server + window manager + the X11/Skia libraries
+./packaging/install-gui-deps.sh --libs   # only the runtime libraries (you already have a desktop)
+```
+
+Then start a session with `startx` (or log into your desktop) and run `nplus`. On a truly
+headless box, use SSH X-forwarding (`ssh -X`) or a VNC desktop instead.
+
 ### Project layout
 
 | Path | What it is |
