@@ -337,11 +337,21 @@ public partial class MainWindow : Window
         panel.Children.Add(title);
         panel.Children.Add(close);
 
-        // Right-click → color tag menu.
-        panel.ContextMenu = BuildTabColorMenu(doc);
+        // Wrap in a Border so the tab can take on the applied color as its background.
+        var border = new Border
+        {
+            Child = panel,
+            Padding = new Thickness(8, 3),
+            CornerRadius = new CornerRadius(3),
+            ContextMenu = BuildTabColorMenu(doc), // right-click → color tag menu
+        };
+        doc.HeaderBorder = border;
+
         UpdateTabHeader(doc);
-        return panel;
+        return border;
     }
+
+    private static readonly Color LiveColor = Color.FromRgb(212, 175, 55); // gold
 
     private void UpdateTabHeader(EditorDocument doc)
     {
@@ -353,15 +363,27 @@ public partial class MainWindow : Window
                 ? new SolidColorBrush(Color.FromRgb(240, 173, 78))
                 : new SolidColorBrush(Color.FromRgb(92, 184, 92));
         }
+
+        // Tab background carries the applied color (or gold while live-monitoring);
+        // the text switches to black/white for contrast.
+        Color? bg = null;
+        if (doc.IsLive) bg = LiveColor;
+        else if (doc.ColorIndex >= 1 && doc.ColorIndex <= TabColors.Length) bg = TabColors[doc.ColorIndex - 1];
+
+        if (doc.HeaderBorder != null)
+            doc.HeaderBorder.Background = bg.HasValue ? new SolidColorBrush(bg.Value) : Brushes.Transparent;
+
         if (doc.TitleBlock != null)
-        {
-            if (doc.IsLive)
-                doc.TitleBlock.Foreground = new SolidColorBrush(Color.FromRgb(212, 175, 55));
-            else if (doc.ColorIndex >= 1 && doc.ColorIndex <= TabColors.Length)
-                doc.TitleBlock.Foreground = new SolidColorBrush(TabColors[doc.ColorIndex - 1]);
-            else
-                doc.TitleBlock.Foreground = _isDarkMode ? Brushes.White : Brushes.Black;
-        }
+            doc.TitleBlock.Foreground = bg.HasValue
+                ? ContrastBrush(bg.Value)
+                : (_isDarkMode ? Brushes.White : Brushes.Black);
+    }
+
+    /// <summary>Black or white, whichever reads better on the given background color.</summary>
+    private static IBrush ContrastBrush(Color c)
+    {
+        double luminance = 0.299 * c.R + 0.587 * c.G + 0.114 * c.B;
+        return luminance > 140 ? Brushes.Black : Brushes.White;
     }
 
     private ContextMenu BuildTabColorMenu(EditorDocument doc)

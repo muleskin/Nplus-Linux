@@ -50,6 +50,7 @@ public sealed class EditorDocument
     // Header sub-controls (kept so headers update cheaply).
     public TextBlock? TitleBlock { get; set; }
     public Ellipse? StatusDot { get; set; }
+    public Border? HeaderBorder { get; set; }
 
     private bool _isDirty;
     public bool IsDirty
