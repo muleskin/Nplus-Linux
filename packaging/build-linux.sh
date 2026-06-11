@@ -10,6 +10,20 @@ PROJ="$ROOT/src/NPlus/NPlus.csproj"
 OUT="$ROOT/dist/$RID"
 STAGE="$ROOT/dist/nplus-$RID"
 
+# Preflight: a partial/incomplete checkout will be missing tracked files. Report all of
+# them at once with a clear fix rather than failing on the first `cp`.
+missing=()
+for f in src/NPlus/NPlus.csproj packaging/install.sh; do
+    [ -e "$ROOT/$f" ] || missing+=("$f")
+done
+if [ "${#missing[@]}" -gt 0 ]; then
+    echo "error: these tracked files are missing from your checkout:" >&2
+    printf '  %s\n' "${missing[@]}" >&2
+    echo "Your working tree is incomplete. Restore it with:" >&2
+    echo "  git -C \"$ROOT\" fetch origin && git -C \"$ROOT\" reset --hard origin/main" >&2
+    exit 1
+fi
+
 # Pick a dotnet whose SDK can target net10 (major version >= 10). Candidates, in order:
 # an explicit $DOTNET, the per-user dotnet-install.sh location, then PATH. This skips an
 # older system SDK (e.g. /usr/bin/dotnet 6.x) that can't build this project.
