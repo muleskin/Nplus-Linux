@@ -3,9 +3,10 @@
 #   make publish RID=linux-arm64
 #   make build CONFIG=Debug
 
-# Find dotnet on PATH, else fall back to the per-user install dir used by
-# dotnet-install.sh (~/.dotnet). Override with: make <target> DOTNET=/path/to/dotnet
-DOTNET  ?= $(shell command -v dotnet 2>/dev/null || echo $(HOME)/.dotnet/dotnet)
+# Pick a dotnet whose SDK can target net10 (major version >= 10), checking the per-user
+# dotnet-install.sh location (~/.dotnet) then PATH — this skips an older system SDK
+# (e.g. /usr/bin/dotnet 6.x). Override with: make <target> DOTNET=/path/to/dotnet
+DOTNET  ?= $(shell best=dotnet; for c in "$(HOME)/.dotnet/dotnet" "$$(command -v dotnet 2>/dev/null)"; do [ -x "$$c" ] || continue; "$$c" --list-sdks 2>/dev/null | grep -qE '^[1-9][0-9]+\.' && { best="$$c"; break; }; done; echo "$$best")
 PROJECT := src/NPlus/NPlus.csproj
 CONFIG  ?= Release
 

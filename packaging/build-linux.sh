@@ -10,17 +10,25 @@ PROJ="$ROOT/src/NPlus/NPlus.csproj"
 OUT="$ROOT/dist/$RID"
 STAGE="$ROOT/dist/nplus-$RID"
 
-# Find dotnet: honor $DOTNET, else PATH, else the per-user dotnet-install.sh location.
-DOTNET="${DOTNET:-dotnet}"
-if ! command -v "$DOTNET" >/dev/null 2>&1; then
-    if [ -x "$HOME/.dotnet/dotnet" ]; then
-        DOTNET="$HOME/.dotnet/dotnet"
-    else
-        echo "error: 'dotnet' not found on PATH and ~/.dotnet/dotnet is missing." >&2
-        echo "Install the SDK first:  ./dotnet-install.sh --channel 10.0" >&2
-        exit 127
-    fi
+# Pick a dotnet whose SDK can target net10 (major version >= 10). Candidates, in order:
+# an explicit $DOTNET, the per-user dotnet-install.sh location, then PATH. This skips an
+# older system SDK (e.g. /usr/bin/dotnet 6.x) that can't build this project.
+sdk_supports_net10() { "$1" --list-sdks 2>/dev/null | grep -qE '^[1-9][0-9]+\.'; }
+DOTNET_BIN=""
+for cand in "${DOTNET:-}" "$HOME/.dotnet/dotnet" dotnet; do
+    [ -n "$cand" ] || continue
+    resolved="$(command -v "$cand" 2>/dev/null || true)"
+    [ -n "$resolved" ] || continue
+    if sdk_supports_net10 "$resolved"; then DOTNET_BIN="$resolved"; break; fi
+done
+if [ -z "$DOTNET_BIN" ]; then
+    echo "error: no .NET SDK that can target net10 was found (need major version >= 10)." >&2
+    echo "Install it:  ./dotnet-install.sh --channel 10.0   (then re-run)" >&2
+    if command -v dotnet >/dev/null 2>&1; then echo "Detected SDKs:" >&2; dotnet --list-sdks >&2 || true; fi
+    exit 1
 fi
+DOTNET="$DOTNET_BIN"
+echo "==> Using dotnet: $DOTNET"
 
 echo "==> Publishing $RID (self-contained, single file)…"
 rm -rf "$OUT" "$STAGE"
