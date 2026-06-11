@@ -371,7 +371,7 @@ public partial class MainWindow : Window
         for (int i = 0; i < names.Length; i++)
         {
             int idx = i + 1;
-            var item = new MenuItem { Header = names[i] };
+            var item = new MenuItem { Header = $"Apply {names[i]}" };
             item.Click += (_, _) => { doc.ColorIndex = idx; UpdateTabHeader(doc); };
             ((System.Collections.IList)menu.Items).Add(item);
         }
