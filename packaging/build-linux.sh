@@ -42,8 +42,32 @@ cp "$OUT"/nplus "$STAGE/bin/"
 cp "$OUT"/*.so "$STAGE/bin/" 2>/dev/null || true
 chmod +x "$STAGE/bin/nplus"
 
-cp "$ROOT/packaging/nplus.desktop" "$STAGE/share/applications/nplus.desktop"
-cp "$ROOT/src/NPlus/Assets/nplus.png" "$STAGE/share/icons/hicolor/256x256/apps/nplus.png"
+# Desktop entry: use the bundled one, or generate a minimal fallback if it's missing.
+if [ -f "$ROOT/packaging/nplus.desktop" ]; then
+    cp "$ROOT/packaging/nplus.desktop" "$STAGE/share/applications/nplus.desktop"
+else
+    echo "note: packaging/nplus.desktop missing — generating a minimal one." >&2
+    cat > "$STAGE/share/applications/nplus.desktop" <<'DESKTOP'
+[Desktop Entry]
+Type=Application
+Name=n+
+GenericName=Text Editor
+Comment=Lightweight text and code editor
+Exec=nplus %F
+Icon=nplus
+Terminal=false
+Categories=Utility;TextEditor;Development;
+MimeType=text/plain;
+DESKTOP
+fi
+
+# Icon is optional — warn and continue if it isn't present.
+if [ -f "$ROOT/src/NPlus/Assets/nplus.png" ]; then
+    cp "$ROOT/src/NPlus/Assets/nplus.png" "$STAGE/share/icons/hicolor/256x256/apps/nplus.png"
+else
+    echo "note: src/NPlus/Assets/nplus.png missing — skipping menu icon." >&2
+fi
+
 cp "$ROOT/packaging/install.sh" "$STAGE/install.sh"
 chmod +x "$STAGE/install.sh"
 cp "$ROOT/README.md" "$STAGE/README.md" 2>/dev/null || true
