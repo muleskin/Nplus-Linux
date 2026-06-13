@@ -17,6 +17,7 @@ public static class AppPaths
     public static string SettingsFile { get; }
     public static string RecentFilesFile { get; }
     public static string MacrosFile { get; }
+    public static string AiSettingsFile { get; }
 
     static AppPaths()
     {
@@ -32,6 +33,7 @@ public static class AppPaths
         SettingsFile = Path.Combine(Root, "settings.txt");
         RecentFilesFile = Path.Combine(Root, "recentfiles.txt");
         MacrosFile = Path.Combine(Root, "macros.json");
+        AiSettingsFile = Path.Combine(Root, "ai.json");
 
         try
         {

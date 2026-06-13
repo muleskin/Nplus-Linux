@@ -69,7 +69,7 @@ public partial class MainWindow : Window
 
     // Toolbar toggle buttons we recolor on state change.
     private Button _btnShowChars = null!, _btnIndent = null!, _btnWrap = null!, _btnColumn = null!,
-                   _btnLive = null!, _btnJson = null!, _btnHex = null!;
+                   _btnLive = null!, _btnJson = null!, _btnHex = null!, _btnAi = null!;
 
     private readonly Dictionary<TabItem, EditorDocument> _docs = new();
     private int _newCounter = 1;
@@ -90,6 +90,7 @@ public partial class MainWindow : Window
 
         _recent.Load();
         _macros.Load();
+        _ai = AiSettings.Load();
 
         InitializeComponent();
         BuildUi();
@@ -131,11 +132,13 @@ public partial class MainWindow : Window
         DockPanel.SetDock(_statusBar, Dock.Bottom);
         dock.Children.Add(_statusBar);
 
-        // Center: a grid with optional JSON side panel | splitter | (tabs over find-results)
+        // Center: json panel | splitter | (tabs over find-results) | splitter | AI chat panel
         _rootContent = new Grid();
-        _rootContent.ColumnDefinitions.Add(new ColumnDefinition(0, GridUnitType.Pixel)); // json panel
-        _rootContent.ColumnDefinitions.Add(new ColumnDefinition(GridLength.Auto));        // splitter
-        _rootContent.ColumnDefinitions.Add(new ColumnDefinition(1, GridUnitType.Star));   // editor area
+        _rootContent.ColumnDefinitions.Add(new ColumnDefinition(0, GridUnitType.Pixel)); // 0 json panel
+        _rootContent.ColumnDefinitions.Add(new ColumnDefinition(GridLength.Auto));        // 1 json splitter
+        _rootContent.ColumnDefinitions.Add(new ColumnDefinition(1, GridUnitType.Star));   // 2 editor area
+        _rootContent.ColumnDefinitions.Add(new ColumnDefinition(GridLength.Auto));        // 3 ai splitter
+        _rootContent.ColumnDefinitions.Add(new ColumnDefinition(0, GridUnitType.Pixel)); // 4 ai panel
 
         _jsonPanel = BuildJsonPanel();
         Grid.SetColumn(_jsonPanel, 0);
@@ -144,6 +147,14 @@ public partial class MainWindow : Window
         _jsonSplitter = new GridSplitter { Width = 4, IsVisible = false, ResizeDirection = GridResizeDirection.Columns };
         Grid.SetColumn(_jsonSplitter, 1);
         _rootContent.Children.Add(_jsonSplitter);
+
+        _aiSplitter = new GridSplitter { Width = 4, IsVisible = false, ResizeDirection = GridResizeDirection.Columns };
+        Grid.SetColumn(_aiSplitter, 3);
+        _rootContent.Children.Add(_aiSplitter);
+
+        _aiPanel = BuildAiPanel();
+        Grid.SetColumn(_aiPanel, 4);
+        _rootContent.Children.Add(_aiPanel);
 
         // Editor area: tabs on top row, find-results on bottom row.
         var editorArea = new Grid();
@@ -210,6 +221,8 @@ public partial class MainWindow : Window
         _btnJson = Tool("{ }", "JSON tree explorer", ToggleJsonPanel);
         _btnHex = Tool("⧉", "Toggle hex view", ToggleHexView);
         Tool("🔍", "Find in Files (Ctrl+Shift+F)", () => ShowFind(2));
+        Sep();
+        _btnAi = Tool("🤖", "AI chat panel (Ctrl+Shift+A)", ToggleAiPanel);
         Sep();
         Tool("☼", "Toggle light / dark theme", ToggleTheme);
         Tool("?", "User's Guide", ShowUserGuide);
@@ -307,6 +320,7 @@ public partial class MainWindow : Window
             ScheduleFoldingUpdate(doc);
         };
         editor.TextArea.Caret.PositionChanged += (_, _) => UpdateStatusBar();
+        editor.ContextMenu = BuildEditorContextMenu(editor);
 
         WireMacroRecording(editor);
         return editor;
@@ -562,6 +576,7 @@ public partial class MainWindow : Window
         _btnLive.Background = ActiveDoc?.IsLive == true ? on : off;
         _btnJson.Background = _jsonPanel.IsVisible ? on : off;
         _btnHex.Background = ActiveDoc?.IsHex == true ? on : off;
+        _btnAi.Background = _aiPanel.IsVisible ? on : off;
     }
 
     // ===================================================================== Status bar
@@ -613,6 +628,8 @@ public partial class MainWindow : Window
         SaveSession();
         SaveSettingsFromState();
         _macros.Save();
+        _ai.Save();
+        _aiCts?.Cancel();
         foreach (var d in _docs.Values) d.DisposeWatchers();
     }
 

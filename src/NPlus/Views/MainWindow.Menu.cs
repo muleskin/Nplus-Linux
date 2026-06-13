@@ -105,6 +105,23 @@ public partial class MainWindow
         AddItems(tools, json, BuildScriptsMenu(), integration);
         top.Add(tools);
 
+        // ---- AI ----
+        var ai = new MenuItem { Header = "_AI" };
+        _aiEnableItem = new MenuItem { Header = "Enable AI", ToggleType = MenuItemToggleType.CheckBox, IsChecked = _ai.Enabled };
+        _aiEnableItem.Click += (_, _) => ToggleAiEnabled();
+        AddItems(ai,
+            Mi("AI Chat Panel", ToggleAiPanel, new KeyGesture(Key.A, KeyModifiers.Control | KeyModifiers.Shift)),
+            new Separator(),
+            Mi("Explain Selection", AiExplainSelection),
+            Mi("Improve Selection", AiImproveSelection),
+            Mi("Summarize Selection", AiSummarizeSelection),
+            Mi("Ask about Selection…", AiAskAboutSelection),
+            Mi("Send Selection to Chat", AiSendSelectionToChat),
+            new Separator(),
+            _aiEnableItem,
+            Mi("Settings…", OpenAiSettings));
+        top.Add(ai);
+
         // ---- Encoding ----
         _encodingMenu = new MenuItem { Header = "E_ncoding" };
         foreach (var name in EncodingHelper.Names)
@@ -255,6 +272,7 @@ public partial class MainWindow
             case Key.F2: NavigateBookmark(true); break;
             case Key.P when ctrl && shift: PlaybackMacro(true); break;
             case Key.F5 when !ctrl && !shift && !alt: RunActiveDocAsScript(); break;
+            case Key.A when ctrl && shift: ToggleAiPanel(); break;
             case Key.F11: ZoomIn(); break;
             case Key.F12: ZoomOut(); break;
             case Key.D0 when ctrl: ZoomReset(); break;

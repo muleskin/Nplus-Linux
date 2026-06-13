@@ -73,7 +73,8 @@ headless box, use SSH X-forwarding (`ssh -X`) or a VNC desktop instead.
 | `src/NPlus/Search/` | The find / replace / mark / count search engine. |
 | `src/NPlus/Scripting/` | Lua scripting host (MoonSharp), the `editor` API bridge, and starter-script seeding. |
 | `src/NPlus/Scripts/` | Bundled starter `.lua` scripts (embedded; seeded into `~/.config/nplus/scripts/`). |
-| `src/NPlus/Dialogs/` | Find/Replace tool window and message-box / prompt helpers. |
+| `src/NPlus/Ai/` | Optional AI assistant: provider metadata, the multi-provider HTTP client (complete + stream + test), chat message model. |
+| `src/NPlus/Dialogs/` | Find/Replace tool window, AI settings dialog, and message-box / prompt helpers. |
 | `packaging/` | `.desktop` entry, icon, Linux build + install scripts. |
 | *(repo root `*.cs`)* | The original Windows WinForms sources, kept as a reference. |
 
@@ -82,10 +83,11 @@ headless box, use SSH X-forwarding (`ssh -X`) or a VNC desktop instead.
 - **Avalonia.AvaloniaEdit** + **AvaloniaEdit.TextMate** — the editor control & syntax highlighting (replaces Scintilla)
 - **TextMateSharp.Grammars** — bundled grammars/themes for the supported languages
 - **MoonSharp** — managed Lua interpreter powering the built-in scripting engine (pure C#, no native dependency, so the self-contained single-file build is unaffected)
-- **System.Text.Json** (in .NET) — JSON formatting / tree view
+- **System.Text.Json** (in .NET) — JSON formatting / tree view, and AI settings/wire-format (de)serialization
+- **System.Net.Http** (in .NET) — the AI assistant's provider client; no extra SDK is pulled in for any backend, each provider is spoken to over plain HTTPS
 
 Config, session snapshots, recent files, macros and Lua scripts live under `~/.config/nplus/`
-(scripts in `~/.config/nplus/scripts/`).
+(scripts in `~/.config/nplus/scripts/`, AI provider settings in `~/.config/nplus/ai.json`).
 
 ## Features
 
@@ -142,6 +144,14 @@ Config, session snapshots, recent files, macros and Lua scripts live under `~/.c
 - **Sandboxed** — the string/table/math/`os`(time) libraries are available, but file I/O, `os.execute` and `loadfile`/`dofile` are disabled, so a script can transform the buffer but can't touch the filesystem or shell
 - Ships with **starter examples** (reverse lines, upper-case selection, insert date, word count) seeded into the scripts folder on first run
 
+### AI Assistant (optional)
+- **Off by default** — nothing reaches the network until you enable it in **AI ▸ Settings**. Leave it off and the editor behaves exactly as before.
+- **Pick your backend**: OpenAI (ChatGPT), Azure OpenAI, Google Gemini, Anthropic Claude, Ollama (local), or Perplexity — each with its own key/endpoint/model, stored per-provider so you can switch freely
+- **Test connection** button in Settings does a tiny live round-trip and reports success/failure per provider
+- **Chat panel** (`Ctrl+Shift+A`, or the 🤖 toolbar button) — a dockable conversation with **token-by-token streaming** responses and a Stop button
+- **Selection actions** (AI menu or editor right-click): **Explain**, **Improve**, **Summarize**, **Ask about Selection…**, or **Send Selection to Chat** to frame your own question around the highlighted text
+- **Sandboxed by scope** — keys live only in your local `~/.config/nplus/ai.json`; requests go straight to the provider you chose and nowhere else
+
 ### Live File Monitoring (Tail)
 - Toggle "Live" mode to auto-reload and auto-scroll on external file changes — tail rolling log files without leaving the editor
 
@@ -166,6 +176,7 @@ Config, session snapshots, recent files, macros and Lua scripts live under `~/.c
 | `F2` / `Shift+F2` | Next / previous bookmark |
 | `Ctrl+Shift+P` | Playback active macro |
 | `F5` | Run current document as a Lua script |
+| `Ctrl+Shift+A` | Toggle AI chat panel |
 | `Alt+Shift+S` | Trim trailing space and save |
 | `F11` / `F12` / `Ctrl+0` | Zoom in / out / reset |
 
