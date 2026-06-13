@@ -71,6 +71,8 @@ headless box, use SSH X-forwarding (`ssh -X`) or a VNC desktop instead.
 | `src/NPlus/Controls/` | `HexView` (read-only hex dump control). |
 | `src/NPlus/Editor/` | AvaloniaEdit helpers: brace folding strategy, bookmark + mark-all background renderers. |
 | `src/NPlus/Search/` | The find / replace / mark / count search engine. |
+| `src/NPlus/Scripting/` | Lua scripting host (MoonSharp), the `editor` API bridge, and starter-script seeding. |
+| `src/NPlus/Scripts/` | Bundled starter `.lua` scripts (embedded; seeded into `~/.config/nplus/scripts/`). |
 | `src/NPlus/Dialogs/` | Find/Replace tool window and message-box / prompt helpers. |
 | `packaging/` | `.desktop` entry, icon, Linux build + install scripts. |
 | *(repo root `*.cs`)* | The original Windows WinForms sources, kept as a reference. |
@@ -79,9 +81,11 @@ headless box, use SSH X-forwarding (`ssh -X`) or a VNC desktop instead.
 - **Avalonia** 12 — cross-platform UI framework
 - **Avalonia.AvaloniaEdit** + **AvaloniaEdit.TextMate** — the editor control & syntax highlighting (replaces Scintilla)
 - **TextMateSharp.Grammars** — bundled grammars/themes for the supported languages
+- **MoonSharp** — managed Lua interpreter powering the built-in scripting engine (pure C#, no native dependency, so the self-contained single-file build is unaffected)
 - **System.Text.Json** (in .NET) — JSON formatting / tree view
 
-Config, session snapshots, recent files and macros live under `~/.config/nplus/`.
+Config, session snapshots, recent files, macros and Lua scripts live under `~/.config/nplus/`
+(scripts in `~/.config/nplus/scripts/`).
 
 ## Features
 
@@ -128,6 +132,16 @@ Config, session snapshots, recent files and macros live under `~/.config/nplus/`
 - **Pretty-print / format** dense or single-line JSON
 - **Visual JSON tree explorer** in a dockable side panel
 
+### Lua Scripting
+- **Built-in Lua scripting engine** (MoonSharp) under **Tools ▸ Scripting (Lua)** — automate edits the macro recorder can't express
+- **Run the active document** as a script (`F5`), **run any `.lua` file**, or pick from your **scripts folder** (`~/.config/nplus/scripts/`, listed live in the menu)
+- A small, stable **`editor` API** gives scripts the buffer and caret:
+  `editor.text()` / `set_text(s)`, `selection()` / `replace_selection(s)`, `insert(s)`,
+  `lines()` / `set_lines(t)`, `line_count()`, `caret_line()`, `file_path()`, `language()`
+- `print(...)` output is captured and shown after the run; every script's edits collapse into a **single undo step**
+- **Sandboxed** — the string/table/math/`os`(time) libraries are available, but file I/O, `os.execute` and `loadfile`/`dofile` are disabled, so a script can transform the buffer but can't touch the filesystem or shell
+- Ships with **starter examples** (reverse lines, upper-case selection, insert date, word count) seeded into the scripts folder on first run
+
 ### Live File Monitoring (Tail)
 - Toggle "Live" mode to auto-reload and auto-scroll on external file changes — tail rolling log files without leaving the editor
 
@@ -151,6 +165,7 @@ Config, session snapshots, recent files and macros live under `~/.config/nplus/`
 | `Ctrl+F2` | Toggle bookmark |
 | `F2` / `Shift+F2` | Next / previous bookmark |
 | `Ctrl+Shift+P` | Playback active macro |
+| `F5` | Run current document as a Lua script |
 | `Alt+Shift+S` | Trim trailing space and save |
 | `F11` / `F12` / `Ctrl+0` | Zoom in / out / reset |
 

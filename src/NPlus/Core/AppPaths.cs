@@ -12,6 +12,7 @@ public static class AppPaths
 {
     public static string Root { get; }
     public static string BackupsDir { get; }
+    public static string ScriptsDir { get; }
     public static string SessionFile { get; }
     public static string SettingsFile { get; }
     public static string RecentFilesFile { get; }
@@ -26,6 +27,7 @@ public static class AppPaths
 
         Root = Path.Combine(baseDir, "nplus");
         BackupsDir = Path.Combine(Root, "backups");
+        ScriptsDir = Path.Combine(Root, "scripts");
         SessionFile = Path.Combine(Root, "session.txt");
         SettingsFile = Path.Combine(Root, "settings.txt");
         RecentFilesFile = Path.Combine(Root, "recentfiles.txt");
@@ -35,6 +37,7 @@ public static class AppPaths
         {
             Directory.CreateDirectory(Root);
             Directory.CreateDirectory(BackupsDir);
+            Directory.CreateDirectory(ScriptsDir);
         }
         catch { /* best effort */ }
     }

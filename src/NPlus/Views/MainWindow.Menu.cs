@@ -102,7 +102,7 @@ public partial class MainWindow
         AddItems(integration,
             Mi("Install 'Open with n+' desktop entry", InstallDesktopEntry),
             Mi("Remove 'Open with n+' desktop entry", RemoveDesktopEntry));
-        AddItems(tools, json, integration);
+        AddItems(tools, json, BuildScriptsMenu(), integration);
         top.Add(tools);
 
         // ---- Encoding ----
@@ -254,6 +254,7 @@ public partial class MainWindow
             case Key.F2 when shift: NavigateBookmark(false); break;
             case Key.F2: NavigateBookmark(true); break;
             case Key.P when ctrl && shift: PlaybackMacro(true); break;
+            case Key.F5 when !ctrl && !shift && !alt: RunActiveDocAsScript(); break;
             case Key.F11: ZoomIn(); break;
             case Key.F12: ZoomOut(); break;
             case Key.D0 when ctrl: ZoomReset(); break;

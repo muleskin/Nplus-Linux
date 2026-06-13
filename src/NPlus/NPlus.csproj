@@ -26,9 +26,15 @@
     <PackageReference Include="AvaloniaEdit.TextMate" Version="12.0.0" />
     <!-- Bundled TextMate grammars + themes for many languages. -->
     <PackageReference Include="TextMateSharp.Grammars" Version="2.0.3" />
+
+    <!-- Embedded Lua scripting engine (pure C#, no native deps — keeps the
+         self-contained single-file build intact across all RIDs). -->
+    <PackageReference Include="MoonSharp" Version="2.0.0" />
   </ItemGroup>
 
   <ItemGroup>
     <AvaloniaResource Include="Assets/**" />
+    <!-- Starter Lua scripts seeded into ~/.config/nplus/scripts on first run. -->
+    <EmbeddedResource Include="Scripts/**/*.lua" />
   </ItemGroup>
 </Project>
