@@ -655,6 +655,134 @@ public partial class MainWindow : Window
 
     private void Exit() => Close();
 
-    private void ShowUserGuide() =>
-        ShowMessage("n+ — User's Guide", "n+ is a lightweight text/code editor.\n\nSee the README for the full feature list and keyboard shortcuts.");
+    private void ShowUserGuide()
+    {
+        var content = new StackPanel { Spacing = 2 };
+
+        void Section(string heading, string body)
+        {
+            content.Children.Add(new TextBlock
+            {
+                Text = heading,
+                FontWeight = FontWeight.Bold,
+                FontSize = 15,
+                Margin = new Thickness(0, 14, 0, 3),
+            });
+            content.Children.Add(new SelectableTextBlock { Text = body, TextWrapping = TextWrapping.Wrap });
+        }
+
+        content.Children.Add(new TextBlock { Text = "n+ — User's Guide", FontWeight = FontWeight.Bold, FontSize = 19 });
+        content.Children.Add(new TextBlock
+        {
+            Text = "A lightweight, cross-platform text and code editor. This guide covers what's built in; "
+                 + "the README has the full reference.",
+            Opacity = 0.75,
+            TextWrapping = TextWrapping.Wrap,
+        });
+
+        Section("Files, tabs & sessions",
+            "• New/Open/Save/Save As/Save All from the File menu or toolbar; Open by Path… works without a native file dialog.\n"
+          + "• Tabs show a save dot (green = saved, amber = unsaved); right-click a tab for a colour tag.\n"
+          + "• Hot exit: open tabs, unsaved edits, window position and zoom are restored next launch.\n"
+          + "• External changes are detected — you're prompted to reload, keep, or track a rename. Locked files open read-only.");
+
+        Section("Editing & lines",
+            "• Syntax highlighting (TextMate) for many languages, brace folding, word wrap, whitespace/EOL display.\n"
+          + "• Column/block selection with Alt+drag (toggle with Ctrl+Alt+A).\n"
+          + "• Line ops: duplicate, split/join, move up/down, remove duplicate/empty lines, insert blanks, reverse/randomise.\n"
+          + "• Sort lines: lexicographic, locale, integer, decimal (dot/comma) or by length, asc/desc, case-insensitive.\n"
+          + "• Blank ops: trim leading/trailing, tabs ↔ spaces, EOL → space.");
+
+        Section("Find, Replace, Mark & Find in Files",
+            "• Find (Ctrl+F), Replace (Ctrl+H), Mark (Ctrl+B) with Normal, Extended (\\n, \\t) and Regex modes; F3 finds next.\n"
+          + "• Mark highlights every match and can bookmark each matching line.\n"
+          + "• Find in Files (Ctrl+Shift+F) and Replace in Files across a folder with type filters and recursion; results dock at the bottom — double-click a hit to jump to it.");
+
+        Section("Bookmarks",
+            "• Toggle with Ctrl+F2; navigate with F2 / Shift+F2.\n"
+          + "• Copy, cut or delete bookmarked lines, delete non-bookmarked lines, or paste-to-bookmarks.");
+
+        Section("Encoding & Hex view",
+            "• Auto-detected encoding with convert-to options: ANSI (Windows-1252), UTF-8, UTF-8 BOM, UTF-16 LE/BE BOM.\n"
+          + "• Read-only hex view for binary files (toolbar ⧉), and a read-only fallback for locked files.");
+
+        Section("JSON tools",
+            "• Format / pretty-print the current document, or explore it in a dockable visual tree (Tools ▸ JSON).");
+
+        Section("Macros",
+            "• Record keystrokes, navigation and Find/Replace actions; play back once, N times, or to end-of-file.\n"
+          + "• Save, load and edit macros step-by-step; saved macros persist between sessions.\n"
+          + "• Alt+Shift+S trims trailing spaces and saves in one step.");
+
+        Section("Lua scripting",
+            "• Tools ▸ Scripting (Lua) runs a script against the active tab. Run the current document with F5, run any .lua file, "
+          + "or pick one from your scripts folder (Open Scripts Folder).\n"
+          + "• Scripts use the 'editor' API: text()/set_text, selection()/replace_selection, insert(), lines()/set_lines, "
+          + "line_count(), caret_line(), file_path(), language(). print(...) output is shown after the run; each run is one undo step.\n"
+          + "• Sandboxed: string/table/math/os(time) are available, but file I/O, os.execute and loadfile/dofile are not.\n"
+          + "• Starter examples (reverse lines, upper-case, insert date, word count) are seeded on first run.");
+
+        Section("AI assistant (optional)",
+            "• Off by default — nothing reaches the network until you enable it in AI ▸ Settings.\n"
+          + "• Choose a backend: OpenAI (ChatGPT), Azure OpenAI, Google Gemini, Anthropic Claude, Ollama (local) or Perplexity — "
+          + "each with its own key/endpoint/model. Use 'Test connection' to verify it.\n"
+          + "• Chat panel: Ctrl+Shift+A or the 🤖 toolbar button. Responses stream token-by-token; Stop cancels.\n"
+          + "• Selection actions (AI menu or editor right-click): Explain, Improve, Summarize, Ask about Selection…, or Send Selection to Chat.");
+
+        Section("AI agent mode",
+            "• Tick 'Agent (let AI edit this tab)' in the chat panel to let the assistant act on the active tab, not just chat.\n"
+          + "• It reads the document/selection, then proposes edits (replace selection, rewrite document, set lines, insert).\n"
+          + "• Every change is shown for confirmation before it's applied, and each confirmed batch is a single undo step. "
+          + "Reject leaves the document untouched.");
+
+        Section("Live monitoring (tail)",
+            "• Toggle 'Live' (📡) on a saved file to auto-reload and auto-scroll as it grows — tail rolling logs in place.");
+
+        Section("View, themes & zoom",
+            "• Light/Dark theme toggle (syntax colours follow). Fold view, collapse/expand all.\n"
+          + "• Zoom in/out/reset with F11 / F12 / Ctrl+0; the level persists between sessions.");
+
+        Section("Keyboard shortcuts",
+            "Ctrl+N/O/S  New / Open / Save        Ctrl+Shift+S  Save As\n"
+          + "Ctrl+F/H/B  Find / Replace / Mark    F3            Find Next\n"
+          + "Ctrl+Shift+F  Find in Files          Ctrl+Alt+A    Column mode\n"
+          + "Ctrl+D  Duplicate line              Ctrl+I / Ctrl+J  Split / Join lines\n"
+          + "Ctrl+Shift+L  Delete line            Ctrl+Shift+Up/Down  Move line\n"
+          + "Ctrl+F2  Toggle bookmark            F2 / Shift+F2  Next / Prev bookmark\n"
+          + "Ctrl+Shift+P  Playback macro         Alt+Shift+S  Trim trailing + save\n"
+          + "F5  Run document as Lua             Ctrl+Shift+A  Toggle AI chat panel\n"
+          + "F11 / F12 / Ctrl+0  Zoom in / out / reset");
+
+        Section("Where settings live",
+            "Config, session, recent files, macros, Lua scripts and AI settings live under ~/.config/nplus/ "
+          + "(scripts in scripts/, AI provider settings in ai.json).");
+
+        var scroll = new ScrollViewer
+        {
+            Content = content,
+            VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+            HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
+        };
+
+        var close = new Button { Content = "Close", MinWidth = 90, IsDefault = true, IsCancel = true, HorizontalAlignment = HorizontalAlignment.Right };
+        var dialog = new Window
+        {
+            Title = "n+ — User's Guide",
+            Width = 680,
+            Height = 620,
+            CanResize = true,
+            WindowStartupLocation = WindowStartupLocation.CenterOwner,
+            ShowInTaskbar = false,
+        };
+        close.Click += (_, _) => dialog.Close();
+
+        var root = new DockPanel { Margin = new Thickness(16), LastChildFill = true };
+        DockPanel.SetDock(close, Dock.Bottom);
+        close.Margin = new Thickness(0, 12, 0, 0);
+        root.Children.Add(close);
+        root.Children.Add(scroll);
+        dialog.Content = root;
+
+        _ = dialog.ShowDialog(this);
+    }
 }
