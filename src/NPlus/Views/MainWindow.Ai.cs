@@ -24,6 +24,7 @@ public partial class MainWindow
     private readonly List<ChatMessage> _conversation = new();
     private CancellationTokenSource? _aiCts;
     private bool _aiBusy;
+    private bool _agentMode;
 
     private const string AiSystemPrompt =
         "You are a helpful assistant embedded in the n+ text editor. Be concise and practical. " +
@@ -37,6 +38,7 @@ public partial class MainWindow
     private TextBox _aiInput = null!;
     private Button _aiSendBtn = null!;
     private Button _aiStopBtn = null!;
+    private CheckBox _agentToggle = null!;
     private TextBlock _aiProviderLabel = null!;
     private MenuItem? _aiEnableItem;
 
@@ -85,7 +87,19 @@ public partial class MainWindow
         _aiStopBtn.Click += (_, _) => _aiCts?.Cancel();
         var inputButtons = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6, HorizontalAlignment = HorizontalAlignment.Right, Children = { _aiStopBtn, _aiSendBtn } };
 
-        var inputArea = new StackPanel { Spacing = 6, Margin = new Thickness(8), Children = { _aiInput, inputButtons } };
+        _agentToggle = new CheckBox { Content = "Agent (let AI edit this tab)", VerticalAlignment = VerticalAlignment.Center };
+        ToolTip.SetTip(_agentToggle, "When on, the AI can read and propose edits to the active tab — every change is shown for confirmation first.");
+        _agentToggle.IsCheckedChanged += (_, _) => _agentMode = _agentToggle.IsChecked == true;
+
+        var btnRow = new Grid();
+        btnRow.ColumnDefinitions.Add(new ColumnDefinition(GridLength.Star));
+        btnRow.ColumnDefinitions.Add(new ColumnDefinition(GridLength.Auto));
+        Grid.SetColumn(_agentToggle, 0);
+        Grid.SetColumn(inputButtons, 1);
+        btnRow.Children.Add(_agentToggle);
+        btnRow.Children.Add(inputButtons);
+
+        var inputArea = new StackPanel { Spacing = 6, Margin = new Thickness(8), Children = { _aiInput, btnRow } };
 
         var dock = new DockPanel { LastChildFill = true };
         DockPanel.SetDock(header, Dock.Top);
@@ -171,7 +185,8 @@ public partial class MainWindow
         if (string.IsNullOrEmpty(text) || _aiBusy) return;
         if (!EnsureAiReady()) return;
         _aiInput.Text = "";
-        _ = SendUserMessage(text);
+        if (_agentMode) _ = RunAgent(text);
+        else _ = SendUserMessage(text);
     }
 
     private async Task SendUserMessage(string userText)
@@ -229,6 +244,161 @@ public partial class MainWindow
         _aiBusy = busy;
         _aiSendBtn.IsEnabled = !busy;
         _aiStopBtn.IsVisible = busy;
+    }
+
+    // ===================================================================== Agent mode
+
+    private async Task RunAgent(string userText)
+    {
+        if (GetActiveEditor()?.Document == null)
+        {
+            ShowMessage("AI", "Agent mode works on a text tab — open or focus one first.");
+            return;
+        }
+        if (!AiProviders.TryParse(_ai.Provider, out var provider)) return;
+        var cfg = _ai.ConfigFor(provider.ToString());
+
+        AddMessageBubble(ChatMessage.User, userText);
+        _conversation.Add(new ChatMessage(ChatMessage.User, userText));
+
+        SetAiBusy(true);
+        var cts = new CancellationTokenSource();
+        _aiCts = cts;
+        try
+        {
+            var client = new AiClient(provider, cfg);
+            var editor = BuildScriptContext("agent");
+            var runner = new AgentRunner(client, editor, ApplyAgentWrites,
+                msg => AddMessageBubble(ChatMessage.Assistant, msg),
+                AddAgentStatus);
+
+            string finalMsg = await runner.RunAsync(new List<ChatMessage>(_conversation), cts.Token);
+            // The final message was already shown as a bubble during the loop; keep it in history only.
+            if (!string.IsNullOrWhiteSpace(finalMsg))
+                _conversation.Add(new ChatMessage(ChatMessage.Assistant, finalMsg));
+        }
+        catch (OperationCanceledException) { AddAgentStatus("[stopped]"); }
+        catch (Exception ex)
+        {
+            var b = AddMessageBubble(ChatMessage.Assistant, "⚠ " + ex.Message);
+            b.Foreground = Brushes.IndianRed;
+        }
+        finally
+        {
+            SetAiBusy(false);
+            _aiCts = null;
+        }
+    }
+
+    private void AddAgentStatus(string text)
+    {
+        var tb = new TextBlock
+        {
+            Text = "• " + text,
+            FontSize = 11,
+            FontStyle = FontStyle.Italic,
+            Opacity = 0.6,
+            Margin = new Thickness(2, 0, 0, 6),
+            TextWrapping = TextWrapping.Wrap,
+        };
+        _aiMessages.Children.Add(tb);
+        AiScrollToEnd();
+    }
+
+    /// <summary>Confirm callback for the agent: previews proposed edits, then applies them as one undo step.</summary>
+    private async Task<bool> ApplyAgentWrites(IReadOnlyList<AgentAction> writes)
+    {
+        if (GetActiveEditor()?.Document == null) return false;
+        bool ok = await ShowWriteConfirmDialog(writes);
+        if (!ok) return false;
+        return ApplyWritesToEditor(writes);
+    }
+
+    private bool ApplyWritesToEditor(IReadOnlyList<AgentAction> writes)
+    {
+        var ed = GetActiveEditor();
+        if (ed?.Document == null) return false;
+        using (ed.Document.RunUpdate())
+        {
+            foreach (var w in writes)
+            {
+                string text = w.Text ?? "";
+                switch (w.Op)
+                {
+                    case "set_text":
+                        ed.Document.Text = text;
+                        break;
+                    case "set_lines":
+                        ed.Document.Text = string.Join(GetNewline(ed), w.Lines ?? new List<string>());
+                        break;
+                    case "replace_selection":
+                        if (ed.SelectionLength > 0)
+                            ed.Document.Replace(ed.SelectionStart, ed.SelectionLength, text);
+                        else { ed.Document.Insert(ed.CaretOffset, text); ed.CaretOffset += text.Length; }
+                        break;
+                    case "insert":
+                        ed.Document.Insert(ed.CaretOffset, text);
+                        ed.CaretOffset += text.Length;
+                        break;
+                }
+            }
+        }
+        return true;
+    }
+
+    private async Task<bool> ShowWriteConfirmDialog(IReadOnlyList<AgentAction> writes)
+    {
+        string Describe(AgentAction w) => w.Op switch
+        {
+            "set_text" => $"Replace the ENTIRE document ({(w.Text ?? "").Length} chars)",
+            "set_lines" => $"Replace document with {(w.Lines?.Count ?? 0)} line(s)",
+            "replace_selection" => $"Replace selection / insert at caret ({(w.Text ?? "").Length} chars)",
+            "insert" => $"Insert at caret ({(w.Text ?? "").Length} chars)",
+            _ => w.Op,
+        };
+
+        var details = new StackPanel { Spacing = 10 };
+        foreach (var w in writes)
+        {
+            string preview = w.Op == "set_lines"
+                ? string.Join("\n", w.Lines ?? new List<string>())
+                : (w.Text ?? "");
+            if (preview.Length > 1500) preview = preview.Substring(0, 1500) + "\n…";
+
+            details.Children.Add(new TextBlock { Text = "▸ " + Describe(w), FontWeight = FontWeight.SemiBold });
+            details.Children.Add(new Border
+            {
+                Background = new SolidColorBrush(_isDarkMode ? Color.FromRgb(40, 44, 50) : Color.FromRgb(245, 245, 245)),
+                CornerRadius = new CornerRadius(4),
+                Padding = new Thickness(8),
+                Child = new SelectableTextBlock
+                {
+                    Text = preview,
+                    TextWrapping = TextWrapping.Wrap,
+                    FontFamily = new FontFamily("Cascadia Mono,Consolas,DejaVu Sans Mono,monospace"),
+                    FontSize = 12,
+                },
+            });
+        }
+
+        var scroll = new ScrollViewer { Content = details, MaxHeight = 380, MaxWidth = 560 };
+        bool accepted = false;
+        var apply = new Button { Content = "Apply", MinWidth = 90, IsDefault = true };
+        var reject = new Button { Content = "Reject", MinWidth = 90, IsCancel = true };
+        var dialog = new Window
+        {
+            Title = $"AI wants to make {writes.Count} change(s) to {ActiveDoc?.BaseTitle ?? "this tab"}",
+            SizeToContent = SizeToContent.WidthAndHeight,
+            CanResize = true,
+            WindowStartupLocation = WindowStartupLocation.CenterOwner,
+            ShowInTaskbar = false,
+        };
+        apply.Click += (_, _) => { accepted = true; dialog.Close(); };
+        reject.Click += (_, _) => dialog.Close();
+        var buttons = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, HorizontalAlignment = HorizontalAlignment.Right, Children = { apply, reject } };
+        dialog.Content = new StackPanel { Margin = new Thickness(16), Spacing = 12, Children = { scroll, buttons } };
+        await dialog.ShowDialog(this);
+        return accepted;
     }
 
     /// <summary>Returns true if AI is enabled and the active provider is configured; otherwise explains why.</summary>

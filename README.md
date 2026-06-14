@@ -73,7 +73,7 @@ headless box, use SSH X-forwarding (`ssh -X`) or a VNC desktop instead.
 | `src/NPlus/Search/` | The find / replace / mark / count search engine. |
 | `src/NPlus/Scripting/` | Lua scripting host (MoonSharp), the `editor` API bridge, and starter-script seeding. |
 | `src/NPlus/Scripts/` | Bundled starter `.lua` scripts (embedded; seeded into `~/.config/nplus/scripts/`). |
-| `src/NPlus/Ai/` | Optional AI assistant: provider metadata, the multi-provider HTTP client (complete + stream + test), chat message model. |
+| `src/NPlus/Ai/` | Optional AI assistant: provider metadata, the multi-provider HTTP client (complete + stream + test), chat message model, and the agent action-protocol runner. |
 | `src/NPlus/Dialogs/` | Find/Replace tool window, AI settings dialog, and message-box / prompt helpers. |
 | `packaging/` | `.desktop` entry, icon, Linux build + install scripts. |
 | *(repo root `*.cs`)* | The original Windows WinForms sources, kept as a reference. |
@@ -150,6 +150,7 @@ Config, session snapshots, recent files, macros and Lua scripts live under `~/.c
 - **Test connection** button in Settings does a tiny live round-trip and reports success/failure per provider
 - **Chat panel** (`Ctrl+Shift+A`, or the 🤖 toolbar button) — a dockable conversation with **token-by-token streaming** responses and a Stop button
 - **Selection actions** (AI menu or editor right-click): **Explain**, **Improve**, **Summarize**, **Ask about Selection…**, or **Send Selection to Chat** to frame your own question around the highlighted text
+- **Agent mode** (a checkbox in the chat panel) — lets the AI *act on the active tab*, not just talk about it. It works through a small action protocol (read the text/selection, then `set_text` / `replace_selection` / `set_lines` / `insert`) in a bounded read→act→verify loop. **Every edit is previewed and must be confirmed** before it touches the buffer, and each confirmed batch is a single undo step. Provider-agnostic — no provider-specific function-calling API, so it behaves the same across all six backends.
 - **Sandboxed by scope** — keys live only in your local `~/.config/nplus/ai.json`; requests go straight to the provider you chose and nowhere else
 
 ### Live File Monitoring (Tail)
