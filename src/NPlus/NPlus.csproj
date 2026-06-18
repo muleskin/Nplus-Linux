@@ -8,13 +8,13 @@
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
     <RootNamespace>NPlus</RootNamespace>
     <AssemblyName>nplus</AssemblyName>
-    <!-- "2.7g" is the product/display version. Version/AssemblyVersion/FileVersion must be
-         numeric (NuGet + assembly metadata reject "2.7g"), so the label lives in
+    <!-- "2.8v" is the product/display version. Version/AssemblyVersion/FileVersion must be
+         numeric (NuGet + assembly metadata reject "2.8v"), so the label lives in
          InformationalVersion with a numeric base alongside. -->
-    <Version>2.7.0</Version>
-    <AssemblyVersion>2.7.0.0</AssemblyVersion>
-    <FileVersion>2.7.0.0</FileVersion>
-    <InformationalVersion>2.7g</InformationalVersion>
+    <Version>2.8.0</Version>
+    <AssemblyVersion>2.8.22.0</AssemblyVersion>
+    <FileVersion>2.8.0.0</FileVersion>
+    <InformationalVersion>2.8v</InformationalVersion>
     <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
   </PropertyGroup>
 

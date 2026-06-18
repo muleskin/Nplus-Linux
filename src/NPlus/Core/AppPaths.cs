@@ -43,4 +43,20 @@ public static class AppPaths
         }
         catch { /* best effort */ }
     }
+
+    /// <summary>
+    /// Restricts a file to owner-only access where the platform supports it. Used for files
+    /// that may hold secrets (e.g. ai.json). On Unix this sets mode 0600; on Windows the file
+    /// already lives under the per-user %APPDATA% tree and any secrets are DPAPI-encrypted, so
+    /// no extra ACL work is needed.
+    /// </summary>
+    public static void TryRestrictToOwner(string path)
+    {
+        try
+        {
+            if (!OperatingSystem.IsWindows() && File.Exists(path))
+                File.SetUnixFileMode(path, UnixFileMode.UserRead | UnixFileMode.UserWrite);
+        }
+        catch { /* best effort */ }
+    }
 }

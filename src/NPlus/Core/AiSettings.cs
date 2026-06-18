@@ -51,7 +51,13 @@ public sealed class AiSettings
             {
                 var json = File.ReadAllText(AppPaths.AiSettingsFile);
                 var s = JsonSerializer.Deserialize<AiSettings>(json);
-                if (s != null) return s;
+                if (s != null)
+                {
+                    // Decrypt keys back to plaintext for in-memory use (legacy plaintext passes through).
+                    foreach (var cfg in s.Providers.Values)
+                        cfg.ApiKey = SecretProtector.Unprotect(cfg.ApiKey);
+                    return s;
+                }
             }
         }
         catch { /* fall through to defaults on any corruption */ }
@@ -62,8 +68,28 @@ public sealed class AiSettings
     {
         try
         {
-            File.WriteAllText(AppPaths.AiSettingsFile, JsonSerializer.Serialize(this, JsonOpts));
+            // Serialize a copy whose API keys are protected at rest; the live instance keeps
+            // plaintext keys so the rest of the app (request building) is unaffected.
+            File.WriteAllText(AppPaths.AiSettingsFile, JsonSerializer.Serialize(ToProtectedCopy(), JsonOpts));
+            AppPaths.TryRestrictToOwner(AppPaths.AiSettingsFile);
         }
         catch { /* best effort */ }
+    }
+
+    /// <summary>A shallow clone with each provider's API key replaced by its protected form.</summary>
+    private AiSettings ToProtectedCopy()
+    {
+        var copy = new AiSettings { Enabled = Enabled, Provider = Provider };
+        foreach (var (name, cfg) in Providers)
+        {
+            copy.Providers[name] = new AiProviderConfig
+            {
+                ApiKey = SecretProtector.Protect(cfg.ApiKey),
+                Endpoint = cfg.Endpoint,
+                Model = cfg.Model,
+                ApiVersion = cfg.ApiVersion,
+            };
+        }
+        return copy;
     }
 }
