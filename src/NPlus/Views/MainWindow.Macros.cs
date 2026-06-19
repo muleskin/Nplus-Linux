@@ -7,7 +7,9 @@ using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Layout;
 using AvaloniaEdit;
+using AvaloniaEdit.Document;
 using NPlus.Core;
+using NPlus.Editor;
 using NPlus.Dialogs;
 using NPlus.Models;
 using NPlus.Search;
@@ -35,21 +37,43 @@ public partial class MainWindow
         editor.AddHandler(KeyDownEvent, (s, e) =>
         {
             if (!_isRecording) return;
+            bool ctrl = e.KeyModifiers.HasFlag(KeyModifiers.Control);
+            bool shift = e.KeyModifiers.HasFlag(KeyModifiers.Shift);
             switch (e.Key)
             {
                 case Key.Enter: _currentMacro.Add(new MacroStep(MacroActionType.NewLine)); break;
                 case Key.Back: _currentMacro.Add(new MacroStep(MacroActionType.Backspace)); break;
                 case Key.Delete: _currentMacro.Add(new MacroStep(MacroActionType.Delete)); break;
-                case Key.Left: _currentMacro.Add(new MacroStep { ActionType = MacroActionType.KeyCommand, CommandId = MacroKeyCommand.CharLeft }); break;
-                case Key.Right: _currentMacro.Add(new MacroStep { ActionType = MacroActionType.KeyCommand, CommandId = MacroKeyCommand.CharRight }); break;
-                case Key.Up: _currentMacro.Add(new MacroStep { ActionType = MacroActionType.KeyCommand, CommandId = MacroKeyCommand.LineUp }); break;
-                case Key.Down: _currentMacro.Add(new MacroStep { ActionType = MacroActionType.KeyCommand, CommandId = MacroKeyCommand.LineDown }); break;
-                case Key.Home: _currentMacro.Add(new MacroStep { ActionType = MacroActionType.KeyCommand, CommandId = MacroKeyCommand.LineStart }); break;
-                case Key.End: _currentMacro.Add(new MacroStep { ActionType = MacroActionType.KeyCommand, CommandId = MacroKeyCommand.LineEnd }); break;
-                case Key.Tab: _currentMacro.Add(new MacroStep { ActionType = MacroActionType.KeyCommand, CommandId = MacroKeyCommand.Tab }); break;
+                case Key.Tab: _currentMacro.Add(KeyCmd(shift ? MacroKeyCommand.BackTab : MacroKeyCommand.Tab)); break;
+                default:
+                    // Capture Shift (select) and Ctrl (word/document) modifiers so navigation that
+                    // builds a selection replays as a selection — not a bare caret move.
+                    var cmd = MapNavigationKey(e.Key, ctrl, shift);
+                    if (cmd != MacroKeyCommand.None) _currentMacro.Add(KeyCmd(cmd));
+                    break;
             }
         }, RoutingStrategies.Tunnel);
     }
+
+    private static MacroStep KeyCmd(MacroKeyCommand cmd) =>
+        new() { ActionType = MacroActionType.KeyCommand, CommandId = cmd };
+
+    private static MacroKeyCommand MapNavigationKey(Key key, bool ctrl, bool shift) => key switch
+    {
+        Key.Left => ctrl ? (shift ? MacroKeyCommand.WordLeftExtend : MacroKeyCommand.WordLeft)
+                         : (shift ? MacroKeyCommand.CharLeftExtend : MacroKeyCommand.CharLeft),
+        Key.Right => ctrl ? (shift ? MacroKeyCommand.WordRightExtend : MacroKeyCommand.WordRight)
+                          : (shift ? MacroKeyCommand.CharRightExtend : MacroKeyCommand.CharRight),
+        Key.Up => shift ? MacroKeyCommand.LineUpExtend : MacroKeyCommand.LineUp,
+        Key.Down => shift ? MacroKeyCommand.LineDownExtend : MacroKeyCommand.LineDown,
+        Key.Home => ctrl ? (shift ? MacroKeyCommand.DocumentStartExtend : MacroKeyCommand.DocumentStart)
+                         : (shift ? MacroKeyCommand.LineStartExtend : MacroKeyCommand.LineStart),
+        Key.End => ctrl ? (shift ? MacroKeyCommand.DocumentEndExtend : MacroKeyCommand.DocumentEnd)
+                        : (shift ? MacroKeyCommand.LineEndExtend : MacroKeyCommand.LineEnd),
+        Key.PageUp => shift ? MacroKeyCommand.PageUpExtend : MacroKeyCommand.PageUp,
+        Key.PageDown => shift ? MacroKeyCommand.PageDownExtend : MacroKeyCommand.PageDown,
+        _ => MacroKeyCommand.None,
+    };
 
     private void StartRecording()
     {
@@ -86,16 +110,16 @@ public partial class MainWindow
         switch (step.ActionType)
         {
             case MacroActionType.InsertText:
-                if (!string.IsNullOrEmpty(step.Data)) { d.Insert(ed.CaretOffset, step.Data); ed.CaretOffset += step.Data!.Length; }
+                if (!string.IsNullOrEmpty(step.Data)) ReplaceSelectionOrInsert(ed, step.Data!);
                 break;
             case MacroActionType.NewLine:
-                { string nl = GetNewline(ed); d.Insert(ed.CaretOffset, nl); ed.CaretOffset += nl.Length; }
+                ReplaceSelectionOrInsert(ed, GetNewline(ed));
                 break;
             case MacroActionType.Backspace:
-                if (ed.CaretOffset > 0) { d.Remove(ed.CaretOffset - 1, 1); ed.CaretOffset--; }
+                DeleteBackwardOrSelection(ed);
                 break;
             case MacroActionType.Delete:
-                if (ed.CaretOffset < d.TextLength) d.Remove(ed.CaretOffset, 1);
+                DeleteForwardOrSelection(ed);
                 break;
             case MacroActionType.KeyCommand:
                 ExecuteKeyCommand(ed, step.CommandId);
@@ -121,28 +145,136 @@ public partial class MainWindow
 
     private static void ExecuteKeyCommand(TextEditor ed, MacroKeyCommand cmd)
     {
-        var d = ed.Document;
-        int offset = ed.CaretOffset;
-        switch (cmd)
+        // Tab/back-tab edit the buffer rather than move the caret.
+        if (cmd == MacroKeyCommand.Tab) { ReplaceSelectionOrInsert(ed, "\t"); return; }
+        if (cmd == MacroKeyCommand.BackTab) { Outdent(ed); return; }
+
+        bool extend = IsExtend(cmd);
+        int target = MacroNavigation.ComputeMoveTarget(ed.Document, BaseMove(cmd), ed.CaretOffset, PageLineCount(ed));
+        ApplyMove(ed, target, extend);
+    }
+
+    private static bool IsExtend(MacroKeyCommand cmd) => cmd is
+        MacroKeyCommand.CharLeftExtend or MacroKeyCommand.CharRightExtend or
+        MacroKeyCommand.LineUpExtend or MacroKeyCommand.LineDownExtend or
+        MacroKeyCommand.WordLeftExtend or MacroKeyCommand.WordRightExtend or
+        MacroKeyCommand.LineStartExtend or MacroKeyCommand.LineEndExtend or
+        MacroKeyCommand.DocumentStartExtend or MacroKeyCommand.DocumentEndExtend or
+        MacroKeyCommand.PageUpExtend or MacroKeyCommand.PageDownExtend;
+
+    /// <summary>Maps a "*Extend" selection command to its plain caret-move equivalent.</summary>
+    private static MacroKeyCommand BaseMove(MacroKeyCommand cmd) => cmd switch
+    {
+        MacroKeyCommand.CharLeftExtend => MacroKeyCommand.CharLeft,
+        MacroKeyCommand.CharRightExtend => MacroKeyCommand.CharRight,
+        MacroKeyCommand.LineUpExtend => MacroKeyCommand.LineUp,
+        MacroKeyCommand.LineDownExtend => MacroKeyCommand.LineDown,
+        MacroKeyCommand.WordLeftExtend => MacroKeyCommand.WordLeft,
+        MacroKeyCommand.WordRightExtend => MacroKeyCommand.WordRight,
+        MacroKeyCommand.LineStartExtend => MacroKeyCommand.LineStart,
+        MacroKeyCommand.LineEndExtend => MacroKeyCommand.LineEnd,
+        MacroKeyCommand.DocumentStartExtend => MacroKeyCommand.DocumentStart,
+        MacroKeyCommand.DocumentEndExtend => MacroKeyCommand.DocumentEnd,
+        MacroKeyCommand.PageUpExtend => MacroKeyCommand.PageUp,
+        MacroKeyCommand.PageDownExtend => MacroKeyCommand.PageDown,
+        _ => cmd,
+    };
+
+    private static int PageLineCount(TextEditor ed)
+    {
+        double lineHeight = ed.FontSize > 0 ? ed.FontSize * 1.3 : 16;
+        double height = ed.TextArea.TextView.Bounds.Height;
+        int n = (height > 0) ? (int)(height / lineHeight) - 1 : 0;
+        return n > 0 ? n : 20; // sensible fallback before the view is laid out
+    }
+
+    /// <summary>Applies a caret move, either extending the selection (Shift) or collapsing it.</summary>
+    private static void ApplyMove(TextEditor ed, int target, bool extend)
+    {
+        target = Math.Clamp(target, 0, ed.Document.TextLength);
+        if (extend)
         {
-            case MacroKeyCommand.CharLeft: ed.CaretOffset = Math.Max(0, offset - 1); break;
-            case MacroKeyCommand.CharRight: ed.CaretOffset = Math.Min(d.TextLength, offset + 1); break;
-            case MacroKeyCommand.LineUp:
+            int caret = ed.CaretOffset;
+            int anchor;
+            if (ed.SelectionLength > 0)
             {
-                var line = d.GetLineByOffset(offset);
-                if (line.PreviousLine != null) ed.CaretOffset = Math.Min(line.PreviousLine.Offset + (offset - line.Offset), line.PreviousLine.EndOffset);
-                break;
+                int s = ed.SelectionStart, e = s + ed.SelectionLength;
+                anchor = caret == e ? s : (caret == s ? e : s); // keep the fixed (non-caret) end
             }
-            case MacroKeyCommand.LineDown:
-            {
-                var line = d.GetLineByOffset(offset);
-                if (line.NextLine != null) ed.CaretOffset = Math.Min(line.NextLine.Offset + (offset - line.Offset), line.NextLine.EndOffset);
-                break;
-            }
-            case MacroKeyCommand.LineStart: ed.CaretOffset = d.GetLineByOffset(offset).Offset; break;
-            case MacroKeyCommand.LineEnd: ed.CaretOffset = d.GetLineByOffset(offset).EndOffset; break;
-            case MacroKeyCommand.Tab: d.Insert(offset, "\t"); ed.CaretOffset = offset + 1; break;
+            else anchor = caret;
+            ed.Select(Math.Min(anchor, target), Math.Abs(target - anchor));
+            ed.CaretOffset = target;
         }
+        else
+        {
+            ed.TextArea.ClearSelection();
+            ed.CaretOffset = target;
+        }
+    }
+
+    // ---- Selection-aware edits (typing/Delete/Backspace replace an active selection) ----
+
+    private static void ReplaceSelectionOrInsert(TextEditor ed, string text)
+    {
+        var d = ed.Document;
+        if (ed.SelectionLength > 0)
+        {
+            int start = ed.SelectionStart;
+            d.Replace(start, ed.SelectionLength, text);
+            ed.TextArea.ClearSelection();
+            ed.CaretOffset = start + text.Length;
+        }
+        else
+        {
+            int o = ed.CaretOffset;
+            d.Insert(o, text);
+            ed.CaretOffset = o + text.Length;
+        }
+    }
+
+    private static void DeleteBackwardOrSelection(TextEditor ed)
+    {
+        var d = ed.Document;
+        if (ed.SelectionLength > 0)
+        {
+            int start = ed.SelectionStart;
+            d.Remove(start, ed.SelectionLength);
+            ed.TextArea.ClearSelection();
+            ed.CaretOffset = start;
+        }
+        else if (ed.CaretOffset > 0)
+        {
+            int o = ed.CaretOffset;
+            d.Remove(o - 1, 1);
+            ed.CaretOffset = o - 1;
+        }
+    }
+
+    private static void DeleteForwardOrSelection(TextEditor ed)
+    {
+        var d = ed.Document;
+        if (ed.SelectionLength > 0)
+        {
+            int start = ed.SelectionStart;
+            d.Remove(start, ed.SelectionLength);
+            ed.TextArea.ClearSelection();
+            ed.CaretOffset = start;
+        }
+        else if (ed.CaretOffset < d.TextLength)
+        {
+            d.Remove(ed.CaretOffset, 1);
+        }
+    }
+
+    private static void Outdent(TextEditor ed)
+    {
+        var d = ed.Document;
+        var line = d.GetLineByOffset(ed.CaretOffset);
+        if (line.Length == 0) return;
+        string head = d.GetText(line.Offset, Math.Min(4, line.Length));
+        int removed = head[0] == '\t' ? 1 : 0;
+        if (removed == 0) while (removed < head.Length && head[removed] == ' ') removed++;
+        if (removed > 0) d.Remove(line.Offset, removed);
     }
 
     // ---- Macro management dialogs ----
