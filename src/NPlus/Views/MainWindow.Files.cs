@@ -21,7 +21,10 @@ public enum SaveCloseChoice { Save, Discard, Cancel }
 
 public partial class MainWindow
 {
-    private const long LargeTextWarn = 100L * 1024 * 1024;
+    // Above this, a text file opens in large-file mode (async load, read-only, no highlighting/folding).
+    private const long LargeFileModeThreshold = 16L * 1024 * 1024;
+    // Above this, prompt before opening — a full in-memory string this large risks running out of memory.
+    private const long LargeTextWarn = 384L * 1024 * 1024;
     private const long LargeBinaryWarn = 256L * 1024 * 1024;
 
     // ---- New / Open ----
@@ -127,23 +130,47 @@ public partial class MainWindow
             return;
         }
 
+        bool large = size >= LargeFileModeThreshold;
         try
         {
             var enc = EncodingHelper.DetectFileEncoding(path);
-            bool locked = false;
-            string content = ReadAllTextShared(path, enc, out locked);
+            string name = Path.GetFileName(path);
 
-            // Swap a hex tab back to a text editor if needed.
+            // Swap a hex tab back to a text editor if needed (must be on the UI thread).
             if (doc.Editor == null) ConvertHexTabToText(doc);
 
+            bool locked;
+            string content;
+            if (large)
+            {
+                // Show a placeholder and read the file off the UI thread so the window stays responsive.
+                doc.BaseTitle = name + "  [loading…]";
+                doc.RaiseHeaderChanged();
+                var loaded = await Task.Run(() =>
+                {
+                    string c = ReadAllTextShared(path, enc, out bool l);
+                    return (text: c, locked: l);
+                });
+                // The tab may have been closed while we were reading.
+                if (!_docs.ContainsKey(doc.TabItem)) return;
+                content = loaded.text;
+                locked = loaded.locked;
+            }
+            else
+            {
+                content = ReadAllTextShared(path, enc, out locked);
+            }
+
+            doc.IsLargeFile = large;
             doc.Encoding = enc;
             doc.FilePath = path;
-            doc.IsReadOnly = locked;
+            doc.IsReadOnly = locked || large; // large files are read-only
+            ConfigureEditorForLargeMode(doc, large);
             SetEditorText(doc, content);
-            doc.BaseTitle = Path.GetFileName(path) + (locked ? " [READ-ONLY]" : "");
+            doc.BaseTitle = name + (large ? "  [LARGE — read-only]" : (locked ? " [READ-ONLY]" : ""));
             doc.IsDirty = false;
-            if (doc.Editor != null) doc.Editor.IsReadOnly = locked;
-            ApplySyntax(doc);
+            if (doc.Editor != null) doc.Editor.IsReadOnly = doc.IsReadOnly;
+            ApplySyntax(doc); // a no-op grammar for large files (see ApplySyntax)
             doc.RaiseHeaderChanged();
             StartFileChangeWatch(doc);
             AddToRecent(path);
@@ -155,6 +182,28 @@ public partial class MainWindow
         }
     }
 
+    /// <summary>
+    /// Turns the heavy editor features off for large files (and restores them otherwise, so a tab
+    /// reused for a normal file after a large one behaves normally again).
+    /// </summary>
+    private void ConfigureEditorForLargeMode(EditorDocument doc, bool large)
+    {
+        var ed = doc.Editor;
+        if (ed == null) return;
+        if (large)
+        {
+            UninstallFolding(doc);
+            ed.Options.HighlightCurrentLine = false;
+            ed.WordWrap = false;
+        }
+        else
+        {
+            ed.Options.HighlightCurrentLine = true;
+            ed.WordWrap = _wordWrap;
+            if (_foldingEnabled) InstallFolding(doc, ed);
+        }
+    }
+
     private void LoadBinaryIntoTab(EditorDocument doc, string path)
     {
         byte[] bytes = ReadAllBytesShared(path);
@@ -162,6 +211,7 @@ public partial class MainWindow
         WireHexDirty(doc, hex);
         doc.Editor = null;
         doc.Hex = hex;
+        doc.IsLargeFile = false;
         doc.TabItem.Content = hex;
         doc.FilePath = path;
         doc.BaseTitle = Path.GetFileName(path);

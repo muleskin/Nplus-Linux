@@ -355,7 +355,7 @@ public partial class MainWindow
         _foldViewItem.IsChecked = _foldingEnabled;
         foreach (var doc in _docs.Values)
         {
-            if (doc.Editor == null) continue;
+            if (doc.Editor == null || doc.IsLargeFile) continue; // folding stays off for large files
             if (_foldingEnabled) InstallFolding(doc, doc.Editor);
             else UninstallFolding(doc);
         }

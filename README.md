@@ -102,6 +102,7 @@ Config, session snapshots, recent files, macros and Lua scripts live under `~/.c
 - **Hot exit / session snapshots** — tabs, unsaved changes, window position and zoom restored on next launch
 - **Recent files** menu (last 10)
 - **Revert to saved**
+- **Large-file mode** — text files over ~16 MB load on a background thread (no UI freeze) and open read-only with syntax highlighting, folding, current-line highlight and word-wrap turned off, so multi-hundred-MB files stay responsive to scroll and search. The tab and status bar show a *LARGE — read-only* indicator. (A confirmation prompt still appears past ~384 MB, where a full in-memory copy risks exhausting memory.)
 - **Read-only Hex view** for binary/executable files
 - **Read-only fallback** when a file is locked by another process
 - **External file change detection** — prompted to reload, keep, or track renamed files

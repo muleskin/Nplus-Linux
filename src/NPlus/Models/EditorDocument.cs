@@ -33,6 +33,13 @@ public sealed class EditorDocument
     public bool IsReadOnly { get; set; }
     public bool IsLive { get; set; }
 
+    /// <summary>
+    /// True when the file was opened in large-file mode: loaded off the UI thread and shown
+    /// with syntax highlighting, folding, current-line highlight and word-wrap disabled, read-only,
+    /// so multi-hundred-MB files stay responsive.
+    /// </summary>
+    public bool IsLargeFile { get; set; }
+
     public TextMate.Installation? TextMate { get; set; }
     public FoldingManager? FoldingManager { get; set; }
     public NPlus.Editor.BraceFoldingStrategy? FoldingStrategy { get; set; }

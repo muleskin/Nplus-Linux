@@ -469,6 +469,8 @@ public partial class MainWindow : Window
     private void ApplySyntax(EditorDocument doc)
     {
         if (doc.Editor == null || doc.TextMate == null) return;
+        // Large files run without highlighting to stay responsive.
+        if (doc.IsLargeFile) { doc.TextMate.SetGrammar(null); return; }
         string? langId = SyntaxMap.GetLanguageId(doc.FilePath);
         if (langId != null)
         {
@@ -606,6 +608,7 @@ public partial class MainWindow : Window
             _lblInsert.Text = "";
         }
         _lblEncoding.Text = doc != null ? EncodingHelper.GetEncodingName(doc.Encoding) : "";
+        if (doc?.IsLargeFile == true) _lblEncoding.Text += "  •  LARGE (read-only)";
         _lblZoom.Text = $"{(int)Math.Round(_zoom * 100)}%";
     }
 
