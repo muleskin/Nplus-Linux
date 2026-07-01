@@ -8,6 +8,8 @@ using Avalonia.Layout;
 using Avalonia.Media;
 using AvaloniaEdit;
 using NPlus.Dialogs;
+using NPlus.Models;
+using NPlus.Search;
 
 namespace NPlus.Views;
 
@@ -74,6 +76,43 @@ public partial class MainWindow
         _findResultsRow.Height = new GridLength(220, GridUnitType.Pixel);
     }
 
+    /// <summary>Searches every open text tab for <paramref name="pattern"/> and lists hits in the results panel.</summary>
+    public int FindAllInOpenTabs(string pattern, SearchOptions o)
+    {
+        if (string.IsNullOrEmpty(pattern)) return 0;
+        var rx = SearchEngine.BuildRegex(pattern, o); // invalid regex throws to the caller
+
+        var hits = new List<ResultRow>();
+        int total = 0, tabsMatched = 0;
+        foreach (var item in _tabs.Items)
+        {
+            if (item is not TabItem tab || !_docs.TryGetValue(tab, out var doc) || doc.Editor?.Document == null)
+                continue; // skip hex tabs
+            var d = doc.Editor.Document;
+            bool any = false;
+            for (int ln = 1; ln <= d.LineCount; ln++)
+            {
+                var line = d.GetLineByNumber(ln);
+                string text = d.GetText(line.Offset, line.Length);
+                if (!rx.IsMatch(text)) continue;
+                total++;
+                any = true;
+                string trimmed = text.Trim();
+                if (trimmed.Length > 200) trimmed = trimmed.Substring(0, 200) + "…";
+                hits.Add(new ResultRow { Doc = doc, Line = ln, Display = $"{doc.DisplayTitle}({ln}): {trimmed}" });
+            }
+            if (any) tabsMatched++;
+        }
+
+        _findResultsHeader.Text = $"Find in Open Tabs: \"{pattern}\" — {total} hit(s) in {tabsMatched} tab(s)";
+        _findResultsList.ItemsSource = hits;
+        _findResultsList.ItemTemplate = new FuncDataTemplate<ResultRow>((row, _) =>
+            new TextBlock { Text = row?.Display ?? "", Margin = new Thickness(6, 1) });
+        _findResultsPanel.IsVisible = true;
+        _findResultsRow.Height = new GridLength(220, GridUnitType.Pixel);
+        return total;
+    }
+
     private void HideFindResults()
     {
         _findResultsPanel.IsVisible = false;
@@ -83,6 +122,24 @@ public partial class MainWindow
     private void OpenSelectedResult()
     {
         if (_findResultsList.SelectedItem is not ResultRow row) return;
+
+        // Open-tabs result: jump straight to the owning tab (keeps unsaved edits).
+        if (row.Doc != null)
+        {
+            if (!_docs.ContainsKey(row.Doc.TabItem)) return; // tab was closed since the search
+            _tabs.SelectedItem = row.Doc.TabItem;
+            var ted = row.Doc.Editor;
+            if (ted?.Document != null && row.Line >= 1 && row.Line <= ted.Document.LineCount)
+            {
+                var l = ted.Document.GetLineByNumber(row.Line);
+                ted.CaretOffset = l.Offset;
+                ted.Select(l.Offset, l.Length);
+                ted.ScrollToLine(row.Line);
+                ted.Focus();
+            }
+            return;
+        }
+
         var parts = row.Raw.Split('|', 3);
         if (parts.Length < 2) return;
         string path = parts[0];
@@ -105,5 +162,7 @@ public partial class MainWindow
     {
         public string Raw = "";
         public string Display = "";
+        public EditorDocument? Doc;   // set for open-tab results (jump to tab, not a disk file)
+        public int Line;
     }
 }

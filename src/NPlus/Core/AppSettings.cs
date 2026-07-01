@@ -25,6 +25,7 @@ public sealed class AppSettings
     public double ZoomLevel { get; set; } = 1.0;
     public bool CheckForUpdatesOnStartup { get; set; }
     public bool FoldingEnabled { get; set; } = true;
+    public bool MultiLineTabs { get; set; }
 
     public bool HasSavedBounds => WindowX != int.MinValue && WindowY != int.MinValue;
 
@@ -58,6 +59,7 @@ public sealed class AppSettings
                 s.ZoomLevel = zoom;
             if (lines.Length >= 11 && bool.TryParse(lines[10], out var cu)) s.CheckForUpdatesOnStartup = cu;
             if (lines.Length >= 12 && bool.TryParse(lines[11], out var fold)) s.FoldingEnabled = fold;
+            if (lines.Length >= 13 && bool.TryParse(lines[12], out var mlt)) s.MultiLineTabs = mlt;
         }
         catch { /* Ignore corrupt settings file */ }
         return s;
@@ -81,6 +83,7 @@ public sealed class AppSettings
                 ZoomLevel.ToString(CultureInfo.InvariantCulture),
                 CheckForUpdatesOnStartup.ToString(),
                 FoldingEnabled.ToString(),
+                MultiLineTabs.ToString(),
             });
         }
         catch { /* Ignore write errors */ }

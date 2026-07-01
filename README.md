@@ -96,10 +96,11 @@ Config, session snapshots, recent files, macros and Lua scripts live under `~/.c
 - **Syntax highlighting** for C#, C/C++, Java, JavaScript/TypeScript, Python, SQL, Visual Basic, VBScript, PowerShell, PHP, HTML, XML/XAML, JSON, YAML (plus shell, CSS, Markdown), via TextMate grammars
 - **Column / block selection** (Alt+drag; toggle with `Ctrl+Alt+A`)
 - **Word wrap**, whitespace/EOL visualization, brace folding
+- **Multi-line tabs** — wrap tab headers across multiple rows so every open file stays visible; toggle from the **View** menu or the 🗂 toolbar button (persists between sessions)
 - **Light** and **Dark** themes — syntax colors update automatically
 
 ### Session & Files
-- **Hot exit / session snapshots** — tabs, unsaved changes, window position and zoom restored on next launch
+- **Hot exit / session snapshots** — tabs, unsaved changes, window position and zoom restored on next launch, with keyboard focus returned to the tab that was active when you last closed
 - **Recent files** menu (last 10)
 - **Revert to saved**
 - **Large-file mode** — text files over ~16 MB load on a background thread (no UI freeze) and open read-only with syntax highlighting, folding, current-line highlight and word-wrap turned off, so multi-hundred-MB files stay responsive to scroll and search. The tab and status bar show a *LARGE — read-only* indicator. (A confirmation prompt still appears past ~384 MB, where a full in-memory copy risks exhausting memory.)
@@ -117,6 +118,7 @@ Config, session snapshots, recent files, macros and Lua scripts live under `~/.c
 ### Find / Replace / Mark / Find in Files
 - Normal, Extended (`\n`, `\t`), and Regex modes (`Ctrl+F`, `Ctrl+H`, `Ctrl+B`)
 - **Mark** highlights all matches and can drop a bookmark on every matching line
+- **Find All in All Tabs** — search every open tab at once; hits are listed in the results panel, double-click to jump straight to the tab and line (unsaved edits included)
 - **Find in Files** (`Ctrl+Shift+F`) across a directory with file-type filters, sub-folder recursion and hidden-folder inclusion
 - **Replace in Files** — bulk find-and-replace across matching files on disk
 - Results appear in a dockable bottom panel; double-click any hit to open the file and jump to the line

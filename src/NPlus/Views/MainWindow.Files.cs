@@ -723,6 +723,7 @@ public partial class MainWindow
                 BackupPath = backupPath,
                 TabTitle = title,
                 ColorIndex = doc.ColorIndex,
+                IsActive = ReferenceEquals(_tabs.SelectedItem, tab),
             });
             counter++;
         }
@@ -734,12 +735,16 @@ public partial class MainWindow
         var entries = SessionStore.Load();
         if (entries.Count == 0) return;
 
+        int activeIndex = -1;
+        int index = 0;
         foreach (var e in entries)
         {
             string display = e.TabTitle.TrimEnd('*');
             if (string.IsNullOrEmpty(e.OriginalPath) && string.IsNullOrEmpty(display)) display = $"new {_newCounter++}";
 
             var doc = AddNewTab(display, string.IsNullOrEmpty(e.OriginalPath) ? null : e.OriginalPath);
+            if (e.IsActive) activeIndex = index;
+            index++;
 
             if (!string.IsNullOrEmpty(e.BackupPath) && File.Exists(e.BackupPath))
             {
@@ -758,6 +763,10 @@ public partial class MainWindow
                 doc.RaiseHeaderChanged();
             }
         }
+
+        // Restore focus to the tab that was active when the session was saved.
+        if (activeIndex >= 0 && activeIndex < _tabs.ItemCount)
+            _tabs.SelectedIndex = activeIndex;
     }
 
     // ---- Linux desktop integration (replaces Windows registry shell integration) ----

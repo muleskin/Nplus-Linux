@@ -162,6 +162,7 @@ public sealed class FindReplaceDialog : Window
         var buttons = new StackPanel { Spacing = 6, Margin = new Thickness(16, 0, 0, 0), Width = 150 };
         buttons.Children.Add(Btn("Find Next", () => Execute("FindNext")));
         buttons.Children.Add(Btn("Count", () => Execute("Count")));
+        buttons.Children.Add(Btn("Find All in All Tabs", FindAllInTabs));
         if (replace)
         {
             buttons.Children.Add(Btn("Replace", () => Execute("Replace")));
@@ -272,6 +273,19 @@ public sealed class FindReplaceDialog : Window
     public void FindNextExternal()
     {
         if (!string.IsNullOrEmpty(_find.Text)) Execute("FindNext");
+    }
+
+    private void FindAllInTabs()
+    {
+        string pattern = _find.Text ?? "";
+        if (string.IsNullOrEmpty(pattern)) return;
+        AddHistory(_findHistory, _find);
+        try
+        {
+            int n = _main.FindAllInOpenTabs(pattern, Options());
+            SetStatus($"{n} hit(s) across all open tabs.");
+        }
+        catch (Exception ex) { SetStatus($"Error: {ex.Message}", true); }
     }
 
     private void Execute(string action)

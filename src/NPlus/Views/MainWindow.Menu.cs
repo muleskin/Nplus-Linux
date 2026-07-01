@@ -14,6 +14,7 @@ public partial class MainWindow
     private MenuItem _encodingMenu = null!;
     private MenuItem _checkStartupItem = null!;
     private MenuItem _foldViewItem = null!;
+    private MenuItem _multiTabItem = null!;
 
     private static MenuItem Mi(string header, Action onClick, KeyGesture? gesture = null)
     {
@@ -66,6 +67,8 @@ public partial class MainWindow
         var view = new MenuItem { Header = "_View" };
         _foldViewItem = new MenuItem { Header = "Fold View", ToggleType = MenuItemToggleType.CheckBox, IsChecked = _foldingEnabled };
         _foldViewItem.Click += (_, _) => ToggleFolding();
+        _multiTabItem = new MenuItem { Header = "Multi-line Tabs", ToggleType = MenuItemToggleType.CheckBox, IsChecked = _multiLineTabs };
+        _multiTabItem.Click += (_, _) => ToggleMultiLineTabs();
         AddItems(view,
             Mi("Zoom In", ZoomIn, new KeyGesture(Key.F11)),
             Mi("Zoom Out", ZoomOut, new KeyGesture(Key.F12)),
@@ -73,7 +76,9 @@ public partial class MainWindow
             new Separator(),
             _foldViewItem,
             Mi("Collapse All", CollapseAll),
-            Mi("Expand All", ExpandAll));
+            Mi("Expand All", ExpandAll),
+            new Separator(),
+            _multiTabItem);
         top.Add(view);
 
         // ---- Macro ----

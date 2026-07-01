@@ -7,6 +7,7 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
 using Avalonia.Controls.Shapes;
+using Avalonia.Controls.Templates;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Layout;
@@ -36,6 +37,7 @@ public partial class MainWindow : Window
     private bool _showIndentGuides;
     private bool _foldingEnabled = true;
     private bool _columnMode;
+    private bool _multiLineTabs;
     private double _zoom = 1.0;
     private const double ZoomStep = 0.1, ZoomMin = AppSettings.ZoomMin, ZoomMax = AppSettings.ZoomMax;
     private const double BaseEditorFontSize = 14;
@@ -69,7 +71,7 @@ public partial class MainWindow : Window
 
     // Toolbar toggle buttons we recolor on state change.
     private Button _btnShowChars = null!, _btnIndent = null!, _btnWrap = null!, _btnColumn = null!,
-                   _btnLive = null!, _btnJson = null!, _btnHex = null!, _btnAi = null!;
+                   _btnLive = null!, _btnJson = null!, _btnHex = null!, _btnAi = null!, _btnMultiTab = null!;
 
     private readonly Dictionary<TabItem, EditorDocument> _docs = new();
     private int _newCounter = 1;
@@ -85,6 +87,7 @@ public partial class MainWindow : Window
         _showCharacters = _settings.ShowCharacters;
         _showIndentGuides = _settings.ShowIndentGuides;
         _foldingEnabled = _settings.FoldingEnabled;
+        _multiLineTabs = _settings.MultiLineTabs;
         _zoom = _settings.ZoomLevel;
         _checkForUpdatesOnStartup = _settings.CheckForUpdatesOnStartup;
 
@@ -109,6 +112,16 @@ public partial class MainWindow : Window
 
         Closing += OnWindowClosing;
         AddHandler(KeyDownEvent, OnWindowKeyDown, RoutingStrategies.Tunnel);
+        Opened += OnOpenedFocusActive;
+    }
+
+    /// <summary>Once the window is shown, put keyboard focus on the restored active tab's editor.</summary>
+    private void OnOpenedFocusActive(object? sender, EventArgs e)
+    {
+        Opened -= OnOpenedFocusActive;
+        var doc = ActiveDoc;
+        if (doc?.Editor != null) doc.Editor.TextArea.Focus();
+        else doc?.Hex?.Focus();
     }
 
     private void InitializeComponent() => Avalonia.Markup.Xaml.AvaloniaXamlLoader.Load(this);
@@ -164,6 +177,7 @@ public partial class MainWindow : Window
 
         _tabs = new TabControl { Padding = new Thickness(0), Margin = new Thickness(0) };
         _tabs.SelectionChanged += OnTabSelectionChanged;
+        ApplyTabLayout();
         Grid.SetRow(_tabs, 0);
         editorArea.Children.Add(_tabs);
 
@@ -223,6 +237,7 @@ public partial class MainWindow : Window
         Tool("🔍", "Find in Files (Ctrl+Shift+F)", () => ShowFind(2));
         Sep();
         _btnAi = Tool("🤖", "AI chat panel (Ctrl+Shift+A)", ToggleAiPanel);
+        _btnMultiTab = Tool("🗂", "Multi-line tabs", ToggleMultiLineTabs);
         Sep();
         Tool("☼", "Toggle light / dark theme", ToggleTheme);
         Tool("?", "User's Guide", ShowUserGuide);
@@ -579,6 +594,26 @@ public partial class MainWindow : Window
         _btnJson.Background = _jsonPanel.IsVisible ? on : off;
         _btnHex.Background = ActiveDoc?.IsHex == true ? on : off;
         _btnAi.Background = _aiPanel.IsVisible ? on : off;
+        _btnMultiTab.Background = _multiLineTabs ? on : off;
+    }
+
+    // ===================================================================== Tab layout
+
+    /// <summary>Lays tab headers out on a single row or wrapped across multiple lines.</summary>
+    private void ApplyTabLayout()
+    {
+        if (_multiLineTabs)
+            _tabs.ItemsPanel = new FuncTemplate<Panel?>(() => new WrapPanel());
+        else
+            _tabs.ClearValue(ItemsControl.ItemsPanelProperty); // restore the theme default (single row)
+    }
+
+    private void ToggleMultiLineTabs()
+    {
+        _multiLineTabs = !_multiLineTabs;
+        ApplyTabLayout();
+        if (_multiTabItem != null) _multiTabItem.IsChecked = _multiLineTabs;
+        UpdateToggleButtonVisuals();
     }
 
     // ===================================================================== Status bar
@@ -643,6 +678,7 @@ public partial class MainWindow : Window
         _settings.ShowCharacters = _showCharacters;
         _settings.ShowIndentGuides = _showIndentGuides;
         _settings.FoldingEnabled = _foldingEnabled;
+        _settings.MultiLineTabs = _multiLineTabs;
         _settings.ZoomLevel = _zoom;
         _settings.CheckForUpdatesOnStartup = _checkForUpdatesOnStartup;
         _settings.IsMaximized = WindowState == WindowState.Maximized;

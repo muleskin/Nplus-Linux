@@ -10,6 +10,8 @@ public sealed class SessionEntry
     public string BackupPath { get; set; } = "";
     public string TabTitle { get; set; } = "";
     public int ColorIndex { get; set; }
+    /// <summary>True for the tab that was active when the session was saved.</summary>
+    public bool IsActive { get; set; }
 }
 
 /// <summary>
@@ -42,7 +44,7 @@ public static class SessionStore
     {
         var lines = new List<string>();
         foreach (var e in entries)
-            lines.Add($"{e.OriginalPath}|{e.BackupPath}|{e.TabTitle}|{e.ColorIndex}");
+            lines.Add($"{e.OriginalPath}|{e.BackupPath}|{e.TabTitle}|{e.ColorIndex}|{(e.IsActive ? 1 : 0)}");
         try { File.WriteAllLines(AppPaths.SessionFile, lines); } catch { }
     }
 
@@ -58,12 +60,14 @@ public static class SessionStore
                 if (parts.Length < 3) continue;
                 int colorIndex = 0;
                 if (parts.Length >= 4) int.TryParse(parts[3], out colorIndex);
+                bool isActive = parts.Length >= 5 && parts[4].Trim() == "1";
                 result.Add(new SessionEntry
                 {
                     OriginalPath = parts[0],
                     BackupPath = parts[1],
                     TabTitle = parts[2],
                     ColorIndex = colorIndex,
+                    IsActive = isActive,
                 });
             }
         }
