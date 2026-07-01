@@ -8,13 +8,13 @@
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
     <RootNamespace>NPlus</RootNamespace>
     <AssemblyName>nplus</AssemblyName>
-    <!-- "2.9b" is the product/display version. Version/AssemblyVersion/FileVersion must be
-         numeric (NuGet + assembly metadata reject "2.9b"); the suffix letter maps to the third
-         component (a=1, b=2, …, v=22) per the AssemblyInfo convention, so 2.9b -> 2.9.2. -->
+    <!-- "2.9p" is the product/display version. Version/AssemblyVersion/FileVersion must be
+         numeric (NuGet + assembly metadata reject "2.9p"); the suffix letter maps to the third
+         component (a=1, b=2, …, p=16) per the AssemblyInfo convention, so 2.9p -> 2.9.16. -->
     <Version>2.9.0</Version>
-    <AssemblyVersion>2.9.2.0</AssemblyVersion>
+    <AssemblyVersion>2.9.16.0</AssemblyVersion>
     <FileVersion>2.9.0.0</FileVersion>
-    <InformationalVersion>2.9b</InformationalVersion>
+    <InformationalVersion>2.9p</InformationalVersion>
     <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
   </PropertyGroup>
 
